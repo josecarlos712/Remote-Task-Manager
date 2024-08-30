@@ -1,0 +1,23 @@
+{% load static %}
+<h3><button type="button" id="update-button">Refresh</button> Programs {{now_date}}</h3>
+<div class="vertical-container">
+    {% for program in programs %}
+    <div class="program-card">
+        <a href="{% url 'program' program.id %}" class="program-link">
+            <h3 class="program-title">{{program.name}}<span class="program-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="4" width="20" height="16" rx="2" ry="2" fill="none"
+                  stroke="{% if programs_state.program.id %}green{% else %}red{% endif %}" stroke-width="2"/>
+            <polyline points="6 8 10 12 6 16" fill="none" stroke="{% if programs_state.program.id %}green{% else %}red{% endif %}"
+                      stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round"/>
+            <polygon points="14 10 19 13 14 16" fill="{% if programs_state.program.id %}green{% else %}red{% endif %}"/>
+            </svg>
+                </span></h3>
+        </a>
+        <p>{{program.description}}</p>
+        <em>{{program.path}}</em>
+    </div>
+    {% endfor %}
+</div>
+<script src="{% static 'js/component_programs.js' %}"></script>

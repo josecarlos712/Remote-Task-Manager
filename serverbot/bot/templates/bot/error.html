@@ -1,0 +1,9 @@
+{% extends 'main.html' %} {% block baseblock %}
+<main>
+    <h1>Error trying to start the .exe program</h1>
+    <div class="message {% if error %}error{% else %}success{% endif %}">
+        {{ message }}<br> Path: {{ path }}
+    </div>
+    <a href="{% url 'home' %}">Go to Home</a>
+</main>
+{% endblock %}

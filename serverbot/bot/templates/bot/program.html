@@ -1,0 +1,9 @@
+{% extends 'main.html' %} {% block baseblock %}
+<main>
+  <h1>{{program.name}}</h1>
+  <small>{{program.description}}</small>
+  <hr />
+  <p>Petition: {{petition}}</p>
+  <a href="{% url 'home' %}"><h2>return home</h2></a>
+</main>
+{% endblock %}

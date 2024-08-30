@@ -1,0 +1,26 @@
+{% extends 'main.html' %} {% block baseblock %}
+<div class="vertical-container">
+    <form method="post">
+        {% csrf_token %}
+        <h2 class="activity-title">Login</h2>
+
+        {% if error %}
+        <div class="error-message">
+            <p style="color: red;">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password">
+        </div>
+
+        <button type="submit" class="btn">Login</button>
+    </form>
+</div>
+{% endblock %}

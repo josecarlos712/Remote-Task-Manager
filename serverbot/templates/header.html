@@ -1,0 +1,22 @@
+<header>
+    <div class="header-left">
+        <a href="{% url 'home' %}">
+            <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <path d="M32 0a32 32 0 1032 32A32 32 0 0032 0zm0 60A28 28 0 114 32 28.031 28.031 0 0132 60z"
+                      fill="#ccc"/>
+                <path d="M25 16h14v2H25zm0 4h14v2H25zm0 4h14v2H25zm-8 12v6h30v-6z" fill="#000"/>
+            </svg>
+        </a>
+    </div>
+    <div class="header-center">
+        <a href="{% url 'home' %}"><h1>Remote Task Manager</h1></a>
+    </div>
+    <div class="header-right">
+        {% if user.is_authenticated %}
+        <span>{{ user.username }}</span>
+        <a href="{% url 'logout' %}">Log out</a>
+        {% else %}
+        <a href="{% url 'login' %}">Log in</a>
+        {% endif %}
+    </div>
+</header>
