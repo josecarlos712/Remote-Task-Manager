@@ -1,0 +1,30 @@
+[
+  {
+    "name": "notepad",
+    "title": "Notepad",
+    "path": "C:/Windows/system32/notepad.exe",
+    "command": "start notepad",
+    "description": "Basic text editor"
+  },
+  {
+    "name": "automatic1111",
+    "title": "Automatic1111 Stable Diffusion",
+    "path": "C:\\Programas\\Automatic1111_fp8\\stable-diffusion-webui\\webui-user.bat",
+    "command": "start automatic",
+    "description": "Stable Diffusion Web UI"
+  },
+  {
+    "name": "textgen",
+    "title": "Text Generation Web UI",
+    "path": "C:\\Programas\\text-generation-webui\\start_windows.bat",
+    "command": "start textgen",
+    "description": "Text generation Web UI"
+  },
+  {
+    "name": "fail",
+    "title": "Fail",
+    "path": "",
+    "command": "fail",
+    "description": "Fail path test"
+  }
+]

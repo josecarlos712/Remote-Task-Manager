@@ -4,12 +4,12 @@
     <small class="activity-description">{{ activity.description }}</small>
     <hr />
     {% for program in programs %}
-    <div class="program-card" id="program{{ program.id }}">
-        <a href="{% url 'program' program.id %}" class="program-link">
-            <h2 class="program-title">
+    <div class="card" id="program{{ program.id }}">
+        <a href="{% url 'program' program.id %}" class="card-link">
+            <h2 class="card-title">
                 {{ program.name }}
                 <svg
-                    class="program-icon"
+                    class="card-icon"
                     width="30"
                     height="30"
                     viewBox="0 0 100 100"
@@ -20,7 +20,7 @@
                 </svg>
             </h2>
         </a>
-        <p class="program-description">{{ program.description }}</p>
+        <p class="card-description">{{ program.description }}</p>
     </div>
     {% endfor %}
     <!-- Link your JavaScript file here if needed -->

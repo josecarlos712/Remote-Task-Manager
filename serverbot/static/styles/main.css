@@ -1,0 +1,444 @@
+:root {
+  --color-text-inv: black; /* Light blue */
+  --color-text: white;
+  --color-text-body: #dbdbdb;
+  --color-background: #0f0f0f; /* Green */
+  --color-background-container: #303030; /* Dark gray */
+  --color-foregroud: #ccc; /* Light gray */
+  --color-error: red;
+  --color-success: green;
+}
+
+/*  */
+/* Reset default margin and padding */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+ul,
+li,
+nav {
+  margin: 0;
+  padding: 0;
+  color: var(--color-text);
+}
+
+body,
+h4,
+h5,
+h6,
+p,
+ul,
+li {
+  color: var(--color-text-body);
+}
+
+/* Basic styles */
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.2;
+  background-color: var(--color-background-container); /* Softer dark gray background */
+  color: var(--color-text-body); /* Light gray text color */
+  padding: 1rem; /* General padding */
+}
+
+/* Divider */
+hr {
+  border: none;
+  height: 0.1rem; /* Thin horizontal line */
+  background-color: #ddd;
+  margin: 1rem 0; /* Add spacing above and below */
+}
+
+/* Style for all <a> tags */
+a {
+  text-decoration: none;
+  color: var(--color-text); /* Default color */
+}
+
+a:hover {
+  color: var(--color-text-body); /* Color on hover */
+}
+
+nav {
+  background-color: var(--color-background);
+  padding: 0.5rem 0;
+}
+
+nav ul {
+  list-style-type: none;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap; /* Allow wrapping if needed */
+  gap: 1rem; /* Space between list items */
+}
+
+nav ul li {
+  margin: 0;
+}
+
+nav ul li a {
+  padding: 0.5rem 0.625rem; /* Adjust padding to make items more compact */
+  border-radius: 0.25rem;
+  font-size: 0.875rem; /* Slightly smaller text for better fit */
+}
+
+nav ul li a:hover {
+  background-color: var(--color-background-container);
+}
+
+main {
+  padding: 2rem; /* Spacing around main content */
+}
+
+small {
+  font-size: 0.75rem; /* Relative size for small text */
+}
+
+/* Grid container styles */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Flexible columns */
+  gap: 15px; /* Spacing between grid items */
+  width: 100%; /* Ensure the grid fits within the parent */
+  box-sizing: border-box; /* Include padding in width calculation */
+  /*background-color: var(--color-background);  Optional */
+}
+
+.grid-container > div {
+  background-color: var(--color-background-container);
+  text-align: center;
+  padding: 10px;
+  font-size: 1em;
+  border: 1px solid var(--color-foregroud);
+  border-radius: 4px;
+}
+
+/* Grid item styles */
+.grid-item {
+  border: 1px solid var(--color-foregroud);
+  padding: 20px;
+  text-align: center;
+}
+
+.grid-item img {
+  max-width: 100%;
+  height: auto;
+}
+
+.grid-item h3 {
+  margin-bottom: 10px;
+}
+
+.grid-item p {
+  margin-bottom: 5px;
+}
+
+.grid-item em {
+  font-style: italic;
+}
+
+/* Vertical container */
+.vertical-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 10 auto;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Flexible column sizing */
+  gap: 20px; /* Space between cards */
+  background-color: #1e1e1e; /* Darker background for content areas */
+  color: #e0e0e0; /* Light text color */
+  box-sizing: border-box; /* Ensure padding is included in total width */
+}
+
+.tab-content {
+  margin-bottom: 10px;
+  padding: 15px;
+  justify-content: center;
+}
+
+.center-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* This will center the content vertically as well */
+}
+
+/* Messages */
+.message {
+  font-size: 20px;
+  margin: 20px 0;
+}
+.error {
+  color: red;
+}
+.success {
+  color: green;
+}
+
+/* Footer styles */
+footer {
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 10px 0;
+  position: relative;
+  width: 100%;
+  bottom: 0;
+}
+
+footer a {
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+footer a:hover {
+  background-color: #aaaaaa;
+}
+
+/* Login */
+.vertical-container form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.form-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.btn {
+  background-color: #333;
+  color: #ccc;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background-color: #555;
+}
+
+/* footer */
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.footer-left,
+.footer-center,
+.footer-right {
+  flex: 1;
+}
+
+/* Generic Card Styles */
+.card {
+  background-color: var(--color-background-container);
+  color: var(--color-text-body);
+  border: 1px solid var(--color-foregroud);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+
+.card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.card-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 1.5em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+.card-icon {
+  margin-left: 8px;
+}
+
+.card-description {
+  margin-top: 8px;
+  color: var(--color-foregroud);
+  word-wrap: break-word; /* Break long words if needed */
+  overflow-wrap: break-word;
+}
+
+.card em {
+  display: block; /* New line for emphasized text */
+  font-style: normal;
+  color: var(--color-foregroud);
+  white-space: normal; /* Allow normal line breaks */
+  max-width: 100%; /* Prevent overflow */
+}
+
+/* ================================= Desktop ===================================*/
+@media (min-width: 801px) {
+  .grid-container {
+    display: grid;
+    grid-template-areas:
+      "header header header"
+      "left main right"
+      "footer footer footer";
+    grid-template-columns: 20% 60% 20%; /* Use percentages instead of 1fr */
+    gap: 10px;
+    width: 100%; /* Ensure the container spans the full width */
+    box-sizing: border-box; /* Include padding and border in width calculation */
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+  }
+}
+
+/* ================================= Mobile ===================================*/
+@media (max-width: 800px) {
+  .leftContainer,
+  .rightContainer {
+    display: none; /* Hide left and right containers on small screens */
+  }
+
+  .grid-container {
+    grid-template-areas:
+      "header"
+      "main"
+      "footer"; /* Update grid template for mobile layout */
+    grid-template-columns: 1fr; /* Single column layout */
+
+    /* Header */
+    header {
+      flex-direction: column;
+      padding: 10px;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+      margin: 5px 0;
+    }
+
+    /* Footer */
+    .footer-container {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .footer-left,
+    .footer-center,
+    .footer-right {
+      text-align: center;
+      margin: 5px 0;
+    }
+
+    .form-group input {
+      width: calc(100% - 16px);
+    }
+    .vertical-container {
+      grid-template-columns: 1fr; /* Single column layout for mobile */
+    }
+  }
+}
+
+/* Additional responsive adjustments */
+@media screen and (max-width: 480px) {
+  /* Adjustments for smaller mobile devices */
+  nav ul li a {
+    padding: 6px 8px; /* Further reduce padding for very small screens */
+    font-size: 12px; /* Further reduce font size if necessary */
+  }
+
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.5em;
+  }
+
+  h2 {
+    font-size: 1.3em;
+  }
+
+  h3 {
+    font-size: 1.1em;
+  }
+
+  .btn {
+    padding: 8px 16px;
+  }
+
+  .vertical-container {
+    grid-template-columns: 1fr; /* 1 column for mobile */
+  }
+}
+
+/* Ensure proper sizing for all elements */
+* {
+  box-sizing: border-box;
+}
+
+/* Improve readability on mobile */
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Make images responsive */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================ Specific Styles ============================ */
+
+/* Debug Console style */
+#console {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 200px; /* Fixed height */
+  overflow-y: auto; /* Vertical scroll bar when needed */
+  background-color: #f0f0f0;
+  font-family: monospace; /* For a more console-like appearance */
+  font-size: 14px;
+  line-height: 1.4;
+  color: #1e1e1e;
+}

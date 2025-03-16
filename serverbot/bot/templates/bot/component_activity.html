@@ -1,9 +1,10 @@
-<h2>Activities</h2>
 <div class="grid-container">
-    {% for activity in activities %}
-    <div class="grid-item">
-        <a href="{% url 'activity' activity.id %}"><h3>{{activity.name}}</h3></a>
-        <p>{{activity.description}}</p>
-    </div>
-    {% endfor %}
+  {% for activity in activities %}
+  <div class="grid-item">
+    <a href="{% url 'activity' activity.id %}">
+      <h3>{{ activity.name }}</h3>
+    </a>
+    <p>{{ activity.description }}</p>
+  </div>
+  {% endfor %}
 </div>

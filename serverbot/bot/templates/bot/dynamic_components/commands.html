@@ -1,0 +1,113 @@
+<div id="commands-container">
+  <h3>Available Commands</h3>
+  <div id="commands-grid">
+    <button class="command-button" data-command="start">
+      <span class="command-title">start</span>
+      <span class="command-description">Permite iniciar programas en la computadora desde una lista predefinida (/start list).</span>
+    </button>
+    <button class="command-button" data-command="popup">
+      <span class="command-title">popup</span>
+      <span class="command-description">Shows a popup.</span>
+    </button>
+    <button class="command-button" data-command="dice">
+      <span class="command-title">dice</span>
+      <span class="command-description">Lanza un dado y devuelve el resultado.</span>
+    </button>
+    <button class="command-button" data-command="shutdown">
+      <span class="command-title">shutdown</span>
+      <span class="command-description">Apaga la computadora del usuario.</span>
+    </button>
+    <button class="command-button" data-command="download">
+      <span class="command-title">download</span>
+      <span class="command-description">Descarga los archivos correspondientes a las URLs proporcionadas.</span>
+    </button>
+    <button class="command-button" data-command="send_screenshot">
+      <span class="command-title">send_screenshot</span>
+      <span class="command-description">Hace una captura de las pantallas y las envía.</span>
+    </button>
+  </div>
+</div>
+<style>
+  #commands-container {
+    margin-bottom: 10px;
+    padding: 20px;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    color: #cccccc;
+    border: 1px solid #505052;
+  }
+
+  #commands-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .command-button {
+    background-color: #353535;
+    color: #cccccc;
+    border: 1px solid #505052;
+    border-radius: 4px;
+    padding: 15px;
+    cursor: pointer;
+    text-align: left;
+    flex: 1 1 calc(45%);
+    max-width: 300px;
+  }
+
+  .command-title {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #cccccc;
+    margin-bottom: 8px;
+  }
+
+  .command-description {
+    font-size: 14px;
+    color: #cccccc;
+  }
+
+  .command-button:hover {
+    background-color: #505052;
+    color: #1e1e1e;
+  }
+
+  .command-title:hover,
+  .command-description:hover {
+    color: #1e1e1e;
+  }
+</style>
+<script>
+  document.querySelectorAll(".command-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const command = button.getAttribute("data-command");
+
+      fetch("http://192.168.0.3:8000/api/command", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"), // If CSRF token is required
+        },
+        body: JSON.stringify({ command: command, message: 'Hola mundo'}),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok " + response.statusText);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Command executed:", data.message);
+          // Append the result to the console if needed
+          const consoleElement = document.getElementById("console_output");
+          if (consoleElement) {
+            consoleElement.textContent += `\n${data.message}`;
+          }
+        })
+        .catch((error) => {
+          console.error("There was an error!", error);
+        });
+    });
+  });
+</script>

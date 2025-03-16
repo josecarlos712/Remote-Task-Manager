@@ -1,99 +1,14 @@
-{% extends 'main.html' %} {% block baseblock %}
-<body>
-    <header>
-        <div class="header-left">
-            <a href="#"><img src="path_to_logo.png" alt="Logo" width="30" height="30"></a>
-        </div>
-        <div class="header-center">
-            <h1>Telegram Bot Manager</h1>
-        </div>
-        <div class="header-right">
-            <a href="#" class="login-link">Log in</a>
-        </div>
-    </header>
+{% extends 'main.html' %} {% load static %} {% block title %}Test Page{% endblock %} {% block baseblock %}
+<h1>Function testing</h1>
 
-    <nav>
-        <ul>
-            <li><a href="#tab1">Features</a></li>
-            <li><a href="#tab2">Commands</a></li>
-            <li><a href="#tab3">Configuration</a></li>
-            <li><a href="#tab4">About</a></li>
-        </ul>
-    </nav>
+<button onclick="executeFunction('button1')">Button 1</button>
+<button onclick="executeFunction('button2')">Button 2</button>
+<button onclick='getHTMLfromAPI("{% url "test_page" %}")'>Button 3</button>
+<button onclick="executeFunction('button4')">Clear console</button>
 
-    <main>
-        <div id="tab1" class="tab-content">
-            <h2>Features</h2>
-            <div class="grid-container">
-                <div class="grid-item">
-                    <h3>Roll a Dice</h3>
-                    <p>Returns a value between 1 and 6</p>
-                    <em>Command: /dice</em>
-                </div>
-                <div class="grid-item">
-                    <h3>Start a Program</h3>
-                    <p>Launch programs from a predefined list</p>
-                    <em>Command: /start</em>
-                </div>
-                <div class="grid-item">
-                    <h3>Help</h3>
-                    <p>Displays available commands and explanations</p>
-                    <em>Command: /help</em>
-                </div>
-                <div class="grid-item">
-                    <h3>Roll a Dice</h3>
-                    <p>Returns a value between 1 and 6</p>
-                    <em>Command: /dice</em>
-                </div>
-                <div class="grid-item">
-                    <h3>Start a Program</h3>
-                    <p>Launch programs from a predefined list</p>
-                    <em>Command: /start</em>
-                </div>
-                <div class="grid-item">
-                    <h3>Help</h3>
-                    <p>Displays available commands and explanations</p>
-                    <em>Command: /help</em>
-                </div>
-                <!-- Add more grid items for other features -->
-            </div>
-        </div>
+<h2>Console Log:</h2>
+<div id="console"></div>
+<div id="container"></div>
 
-        <div id="tab2" class="tab-content">
-            <h2>Commands</h2>
-            <div class="vertical-container">
-                <div class="program-card">
-                    <a href="#" class="program-link">
-                        <h3 class="program-title">/dice <span class="program-icon">🎲</span></h3>
-                    </a>
-                    <p class="program-description">Roll a virtual dice and get a random number between 1 and 6.</p>
-                </div>
-                <div class="program-card">
-                    <a href="#" class="program-link">
-                        <h3 class="program-title">/start <span class="program-icon">▶️</span></h3>
-                    </a>
-                    <p class="program-description">Start a program from a predefined list. Use "/start help" for available options.</p>
-                </div>
-                <!-- Add more program cards for other commands -->
-            </div>
-        </div>
-
-        <div id="tab3" class="tab-content">
-            <h2>Configuration</h2>
-            <p>Information about configuring the Telegram Bot Manager...</p>
-        </div>
-
-        <div id="tab4" class="tab-content">
-            <h2>About</h2>
-            <p>Telegram Bot Manager v23.1113.01</p>
-            <p>A compilation of utilities to manage your own PC using a Telegram bot to send commands.</p>
-        </div>
-    </main>
-
-    <footer>
-        <a href="https://github.com/yourusername/telegram-bot-manager">GitHub</a>
-        <a href="#">Contact</a>
-        <a href="#">Privacy Policy</a>
-    </footer>
-</body>
+<script src="{% static 'js/button_call_api.js' %}"></script>
 {% endblock %}

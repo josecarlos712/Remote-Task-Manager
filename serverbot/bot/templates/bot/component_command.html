@@ -1,6 +1,6 @@
 {% load static %}
 <h3>
-  <h3>
+  <h3>5
     <button type="button" id="update-button" onclick="" alt="Refresh">
       <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
         <path
@@ -11,27 +11,18 @@
           stroke-linejoin="round"
         />
       </svg>
-      <span class="visually-hidden">Refresh</span>
-    </button>
-    Programs
+      <span class="visually-hidden">Refresh</span></button
+    > Commands
   </h3>
+  <small>(last update: {{now_date|default:"None"}})</small>
 </h3>
 <div class="vertical-container">
   {% for program in programs %}
   <div class="card">
     <a href="#" class="card-link" onclick="fetchProgramDetails({{ program.id }}); return false;">
-      <h3 class="card-title">
-        {{program.name}}<span class="card-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <rect id="program_status_rect_{{ program.id }}" x="2" y="4" width="20" height="16" rx="2" ry="2" fill="none" stroke="red" stroke-width="2" />
-            <polyline id="program_status__polyline_{{ program.id }}" points="6 8 10 12 6 16" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <polygon id="program_status_polygon_{{ program.id }}" points="14 10 19 13 14 16" fill="red" />
-          </svg>
-        </span>
-      </h3>
+      <h3 class="card-title">{{program.name}}</h3>
     </a>
-    <p>{{program.description}}</p>
-    <em>{{program.path}}</em>
+    <em>{{program.description}}</em>
   </div>
   {% endfor %}
 </div>

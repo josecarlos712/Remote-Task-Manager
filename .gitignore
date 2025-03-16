@@ -1,0 +1,19 @@
+# Virtual environment
+venv/
+
+# PyCharm
+.idea/
+*.iml
+
+# Python cache and test artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Logs and environment files
+logs/
+*.log.*
+*.log
+.env
