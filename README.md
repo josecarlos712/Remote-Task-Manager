@@ -1,6 +1,11 @@
-# **Remote-Task-Manager**
+# **Remote-Task-Manager v0.3.0**
 
-Remote Task Manager v24.1023.01 This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.
+Remote Task Manager v0.1.0. Basic web interface
+Remote Task Manager v0.2.0. Adding different capabilities to the server.
+Remote Task Manager v0.3.0. Loging, logout, register functionality.
+
+This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.
+
 
 ## **Capabilities**
 
