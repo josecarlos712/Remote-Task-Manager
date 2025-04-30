@@ -1,28 +1,17 @@
-{% extends 'main.html' %} 
-{% block title %} {{activity.name}} {% endblock %} 
-{% block baseblock %}
-<div class="vertical-container">
-    <div class="activity-container">
-        <div class="activity-header">
-            <h1 class="activity-title">{{activity.name}}</h1>
-            <p class="activity-meta">Publicado por 
-                {% if activity.user %}
-          {{ activity.user.username }}
-      {% else %}
-          [eliminado]
-      {% endif %} 
-      el {{ activity.date|date:"d-m-Y" }}</span>
-      {% if activity.hour %}a las {{ activity.hour|time:"H:i:s" }}{% endif %}</span></p>
-        </div>
-        <div class="activity-body">
-            {{ activity.description }}
-        </div>
-    </div>
-</div>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Viaje Familiar</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+        }
 
-<!--
-<style>
         .main-container {
             max-width: 60%;
             width: 100%;
@@ -31,6 +20,11 @@
             border-radius: 8px;
             background-color: #f9f9f9;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
         }
 
         .activity-meta {
@@ -42,6 +36,13 @@
         .activity-description {
             margin-bottom: 20px;
             line-height: 1.6;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 30px 0;
         }
 
         .new-message-area {
@@ -117,14 +118,15 @@
             cursor: pointer;
             margin-left: 10px;
         }
-
-		.attached-image:hover {
+		
+		#benagil-image {
 			cursor: pointer;
-			transform: scale(1.05);
 		}
     </style>
+</head>
+<body>
 
-<div class="main-container">
+    <div class="main-container">
         <h1>Plan para Viaje Familiar a la Playa en Verano</h1>
         <p class="activity-meta">Creado por José Carlos el 2 de Abril de 2025</p>
 
@@ -209,7 +211,7 @@
                 </div>
                 <div class="message-content">
                     <p>Si vais al Algarve, no os perdáis la cueva de Benagil. ¡Es espectacular!</p>
-                    <a><img class="attached-image" id="attached-image" src="file:///C:/Users/josec/Downloads/foto.png " alt="Cueva de Benagil" width="20%"><a/>
+                    <a><img id="benagil-image" src="file:///C:/Users/josec/Downloads/foto.png" alt="Cueva de Benagil" width="20%"><a/>
                 </div>
                 <div class="message-actions">
                     Me gusta: <span class="like-count">2</span> <span class="like-button">👍</span>
@@ -228,4 +230,5 @@
         }
     });
 </script>
--->
+</body>
+</html>

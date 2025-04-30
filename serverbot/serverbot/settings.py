@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
     'bot.apps.BotConfig',
     'rest_framework',  # to create the api
+    'rest_framework.authtoken',  # to create the token
     'corsheaders',  # to allow endpoints access the api
     'sslserver',
 ]

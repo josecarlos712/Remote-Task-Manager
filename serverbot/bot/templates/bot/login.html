@@ -1,26 +1,94 @@
-{% extends 'main.html' %} {% block baseblock %}
+{% extends 'main.html' %} 
+{% load static %}
+{% block baseblock %}
 <div class="vertical-container">
-    <form method="post">
-        {% csrf_token %}
-        <h2 class="activity-title">Login</h2>
+  <form id="form_login" method="post">
+    {% csrf_token %}
+    <h2 class="activity-title">Login</h2>
 
-        {% if error %}
-        <div class="error-message">
-            <p style="color: red;">{{ error }}</p>
-        </div>
-        {% endif %}
+    {% if error %}
+    <div class="error-message">
+      <p style="color: red">{{ error }}</p>
+    </div>
+    {% endif %}
 
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username">
-        </div>
+    <div class="form-group">
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required autocomplete="on" />
+    </div>
 
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password">
-        </div>
+    <div class="form-group">
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required autocomplete="on" />
+    </div>
 
-        <button type="submit" class="btn">Login</button>
-    </form>
+    <button type="submit" class="btn">Login</button>
+  </form>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // --- Login Form Logic ---
+    
+        const loginForm = document.getElementById("form_login");
+        // Check if the login form exists on the page
+        if (loginForm) {
+            const loginUsernameInput = document.getElementById('username');
+            const loginPasswordInput = document.getElementById('password');
+    
+            loginForm.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent the default form submission
+    
+                // Gather login data from input fields
+                const loginData = {
+                    username: loginUsernameInput.value.trim(),
+                    password: loginPasswordInput.value
+                };
+    
+                const loginUrl = '{% url "api_login" %}'; // Get the API login URL
+    
+                if (typeof sendAjaxPostRequest === 'function') {
+                    sendAjaxPostRequest(loginUrl, loginData)
+                        .then(([success, responseData]) => {
+                            if (success) {
+                                // Handle successful login (API status 'success')
+                                console.log("Login successful:", responseData);
+                                //alert("Inicio de sesión exitoso!");
+                                // Redirect to home/dashboard
+                                window.location.href = '/'; // Redirect to home page
+                            } else {
+                                // Handle login failure (API status 'error' or HTTP error)
+                                console.error("Login failed:", responseData);
+                                // Assumes displayErrors is defined and accessible
+                                if (typeof displayErrors === 'function' && responseData && responseData.data) {
+                                    // If responseData.data contains validation errors, display them
+                                    displayErrors(responseData.data);
+                                } else if (responseData && responseData.message) {
+                                    // Display a general error message from the API response
+                                    alert("Error al iniciar sesión: " + responseData.message);
+                                } else {
+                                    alert("Ocurrió un error al iniciar sesión.");
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            // Handle network errors or CSRF token missing
+                            console.error("Login request failed:", error);
+                            alert("Error en la solicitud de inicio de sesión: " + error);
+                        });
+                } else {
+                     console.error("sendAjaxPostRequest function not found. Cannot send AJAX request.");
+                     alert("Error interno: No se puede enviar la solicitud de inicio de sesión.");
+                }
+            });
+    
+            // Note: getCookie, displayErrors, and sendAjaxPostRequest
+            // are assumed to be defined and accessible in the scope where this script runs.
+    
+        } else {
+             console.log("DEBUG: Login form element not found.");
+        }
+    });
+    
+</script>
+
 {% endblock %}

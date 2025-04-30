@@ -1,0 +1,133 @@
+import tkinter as tk
+from tkinter import scrolledtext, ttk
+import requests
+import json
+import threading
+
+# Default port for API requests (modify as needed)
+DEFAULT_PORT = "8000"
+
+# Store available endpoints
+endpoints = []
+post_endpoints = set()  # Using a set to store POST endpoints
+
+
+# Fetch API structure dynamically
+def fetch_endpoints():
+    """
+    Fetches the API structure from the `/api/tree` endpoint and extracts available endpoints with their methods.
+    """
+    global endpoints, post_endpoints
+    url = f"http://localhost:{DEFAULT_PORT}/api/data/tree"
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if data.get("status") != "success":
+            raise ValueError("Invalid response from API")
+
+        api_tree = data.get("data", {}).get("api", {})
+        endpoints.clear()
+        post_endpoints.clear()
+
+        def extract_endpoints(tree, prefix=""):
+            """ Recursively extract endpoints from the API tree """
+            for key, value in tree.items():
+                if isinstance(value, dict):
+                    full_endpoint = f"{prefix}{key}"
+                    if "_methods" in value:
+                        endpoints.append(full_endpoint)
+                        if "POST" in value["_methods"]:
+                            post_endpoints.add(full_endpoint)
+                    extract_endpoints(value, f"{full_endpoint}/")
+
+        extract_endpoints(api_tree)
+        update_ui()
+
+    except requests.exceptions.RequestException as e:
+        response_text.insert(tk.END, f"Error fetching API structure: {e}\n")
+
+
+# Function to update the UI when endpoints are retrieved
+def update_ui():
+    """
+    Updates the dropdown menu with the dynamically fetched endpoints.
+    """
+    endpoint_dropdown["values"] = endpoints
+    if endpoints:
+        endpoint_var.set(endpoints[0])  # Select first endpoint by default
+
+
+# Function to send request in a separate thread
+def send_request():
+    threading.Thread(target=send_request_thread, daemon=True).start()
+
+
+# Function to execute the request without blocking the UI
+def send_request_thread():
+    selected_endpoint = endpoint_var.get()
+    message = message_entry.get()
+    port = port_entry.get()
+
+    # Clear previous response
+    response_text.delete(1.0, tk.END)
+
+    if not port:
+        response_text.insert(tk.END, "Error: The 'port' field is required.")
+        return
+    if not selected_endpoint:
+        response_text.insert(tk.END, "Error: You must select an endpoint.")
+        return
+
+    url = f"http://localhost:{port}/api/{selected_endpoint}"
+    try:
+        if selected_endpoint in post_endpoints:
+            if not message:
+                response_text.insert(tk.END, "Error: This endpoint requires a message.")
+                return
+            payload = {"message": message}
+            response = requests.post(url, json=payload)
+        else:
+            response = requests.get(url)
+
+        response_data = response.json()
+        formatted_response = json.dumps(response_data, indent=4)
+        response_text.insert(tk.END, formatted_response)
+    except requests.exceptions.RequestException as e:
+        response_text.insert(tk.END, f"Request error: {e}")
+
+
+# GUI Setup
+root = tk.Tk()
+root.title("API Request Tester")
+
+# Endpoint selection
+tk.Label(root, text="Select Endpoint:").grid(row=0, column=0)
+endpoint_var = tk.StringVar(root)
+endpoint_dropdown = ttk.Combobox(root, textvariable=endpoint_var, state="readonly")
+endpoint_dropdown.grid(row=0, column=1)
+
+# Message input (only used for POST requests)
+tk.Label(root, text="Message:").grid(row=1, column=0)
+message_entry = tk.Entry(root)
+message_entry.grid(row=1, column=1)
+
+# Port input
+tk.Label(root, text="Port:").grid(row=2, column=0)
+port_entry = tk.Entry(root)
+port_entry.insert(0, DEFAULT_PORT)
+port_entry.grid(row=2, column=1)
+
+# Send request button
+send_button = tk.Button(root, text="Send Request", command=send_request)
+send_button.grid(row=3, column=1)
+
+# Response display
+response_text = scrolledtext.ScrolledText(root, width=60, height=20)
+response_text.grid(row=4, column=0, columnspan=2)
+
+# Fetch endpoints on startup
+fetch_endpoints()
+
+# Start GUI loop
+root.mainloop()

@@ -1,17 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import TextField
-
-
-# Create your models here.
+from django.utils import timezone
 
 
 class Activity(models.Model):
     name = models.TextField(null=False, blank=False)
     description = models.TextField(null=False, blank=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    date = models.DateField(default=timezone.now)
+    hour = models.TimeField(default=timezone.now)
 
-    def __str__(self) -> TextField:
-        return self.name
+    def __str__(self):
+        return f"Activity: {self.name}"
 
 
 class Program(models.Model):

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functional Program Cards Mockup</title>
+    <style>
+        .program-card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .program-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            width: calc(33% - 10px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .program-card h4 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .program-card p {
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 0.8em;
+        }
+
+        .program-actions {
+            margin-top: 5px;
+        }
+
+        .program-actions button[type="submit"] {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .program-actions button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .program-status {
+            font-size: 0.8em;
+            color: #777;
+            margin-top: 5px;
+        }
+
+        .program-status.running {
+            color: green;
+            font-weight: bold;
+        }
+
+        .program-status.stopped {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="program-card-container">
+        <div class="program-card" data-program-id="1">
+            <h4>Apagar</h4>
+            <p>Apaga el ordenador cliente.</p>
+            <form class="program-actions">
+                <input type="hidden" name="program_id" value="1">
+                <button type="submit">Ejecutar</button>
+            </form>
+            <p class="program-status stopped">Detenido</p>
+            <script>
+                const card1 = this.closest('.program-card');
+                const form1 = card1.querySelector('.program-actions');
+                form1.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const programId = card1.dataset.programId;
+                    fetch('/api/programs/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // You might need to include a CSRF token here in a real Django setup
+                        },
+                        body: JSON.stringify({ program_id: programId }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Success:', data);
+                        // Handle the response (e.g., update status)
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        // Handle errors
+                    });
+                });
+            </script>
+        </div>
+
+        <div class="program-card" data-program-id="2">
+            <h4>Calculadora</h4>
+            <p>Inicia la calculadora.</p>
+            <form class="program-actions">
+                <input type="hidden" name="program_id" value="2">
+                <button type="submit">Ejecutar</button>
+            </form>
+            <p class="program-status stopped">Detenido</p>
+            <script>
+                const card2 = this.closest('.program-card');
+                const form2 = card2.querySelector('.program-actions');
+                form2.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const programId = card2.dataset.programId;
+                    fetch('/api/programs/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // You might need to include a CSRF token here
+                        },
+                        body: JSON.stringify({ program_id: programId }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Success:', data);
+                        // Handle the response
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        // Handle errors
+                    });
+                });
+            </script>
+        </div>
+
+        <div class="program-card" data-program-id="3">
+            <h4>Detener Proceso X</h4>
+            <p>Detiene un proceso.</p>
+            <form class="program-actions">
+                <input type="hidden" name="program_id" value="3">
+                <button type="submit">Ejecutar</button>
+            </form>
+            <p class="program-status running">Ejecutándose</p>
+            <script>
+                const card3 = this.closest('.program-card');
+                const form3 = card3.querySelector('.program-actions');
+                form3.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const programId = card3.dataset.programId;
+                    fetch('/api/programs/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // You might need a CSRF token
+                        },
+                        body: JSON.stringify({ program_id: programId }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Success:', data);
+                        // Handle the response
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        // Handle errors
+                    });
+                });
+            </script>
+        </div>
+    </div>
+
+    <script>
+        // You could also have a single script block at the end to handle all forms
+        // This example has a script inside each card for clarity.
+    </script>
+
+</body>
+</html>

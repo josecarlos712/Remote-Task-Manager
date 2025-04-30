@@ -7,7 +7,7 @@ import requests
 from django.db import transaction
 from django.http import JsonResponse
 
-from .models import Program
+from ..models import Program
 
 processes = {}
 processes_status = {}
@@ -49,7 +49,7 @@ def read_config():
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Navigate to the config folder and construct the full path to paths.json
-    config_path = os.path.join(current_dir, 'config', 'paths.json')
+    config_path = os.path.join(current_dir, '../config', 'paths.json')
 
     try:
         with open(config_path, 'r') as config_file:

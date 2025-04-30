@@ -1,0 +1,157 @@
+<!-- prettier-ignore -->
+{% extends 'main.html' %}
+{% block title %}Acerca de{% endblock %} 
+{% block header_style %}
+<style>
+  h1,
+  h2,
+  h3 {
+    color: var(--color-text); /* Use color from main CSS */
+    margin: 1em 0; /* Consistent vertical spacing */
+  }
+
+  h1 {
+    margin-bottom: 1em;
+    text-align: center;
+    font-size: 2em; /* Larger font size for main heading */
+  }
+
+  h2 {
+    margin-top: 2em;
+    margin-bottom: 0.8em;
+    border-bottom: 0.1rem solid #ddd; /* Use hr style from main CSS */
+    padding-bottom: 0.5em;
+    font-size: 1.5em; /* Adjusted font size */
+  }
+
+  h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.6em;
+    font-size: 1.2em; /* Adjusted font size */
+  }
+
+  ul,
+  ol {
+    margin-bottom: 1em;
+    padding-left: 20px;
+    list-style-position: inside; /* Improved list alignment */
+  }
+
+  li {
+    margin-bottom: 0.5em;
+  }
+
+  .about-container {
+    max-width: 100%;
+    width: 100%;
+    padding: 2rem; /* Spacing around main content */
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Use box-shadow from main CSS */
+    background-color: var(--color-background-container); /* Softer dark gray background */
+    color: var(--color-text-body); /* Light gray text color */
+    box-sizing: border-box; /* Ensure padding is included in total width */
+    margin: 10 auto; /* Use margin auto for centering */
+  }
+
+  .contact-info p {
+    margin-bottom: 0.5em;
+  }
+
+  .faq-item {
+    margin-bottom: 1.5em;
+  }
+
+  .faq-item h4 {
+    font-weight: bold;
+    margin-bottom: 0.5em;
+    font-size: 1em; /* Keep FAQ question size consistent */
+  }
+
+  .legal-links {
+    margin-top: 2em;
+    font-size: 0.75rem; /* Use small text size from main CSS */
+    color: var(--color-text-body); /* Light gray text color */
+    text-align: center; /* Center the legal links */
+  }
+
+  .legal-links a {
+    color: var(--color-text); /* Use link color from main CSS */
+    text-decoration: underline; /* Underline the links */
+    margin: 0 0.5em; /* Spacing around links */
+  }
+
+  .legal-links a:hover {
+    color: var(--color-text-body); /* Color on hover */
+  }
+</style>
+{% endblock %} {% block baseblock %} {% load static %}
+<!-- prettier-ignore-attribute -->
+<div class="vertical-container">
+  <div class="about-container">
+    <h1>Acerca de [Nombre de tu Aplicación/Sitio Web]</h1>
+
+    <h2>Bienvenido/a</h2>
+    <p>
+      Aquí encontrarás toda la información relevante sobre [Nombre de tu Aplicación/Sitio Web], una plataforma diseñada para [breve descripción del propósito principal de tu aplicación, por ejemplo: facilitar la gestión remota de tu ordenador, ayudarte a organizar tus tareas, etc.]. Nuestro objetivo
+      es proporcionar una herramienta intuitiva y eficaz para [menciona el beneficio principal para el usuario, por ejemplo: simplificar tu flujo de trabajo, mejorar tu productividad, etc.].
+    </p>
+
+    <h2>¿Qué puedes encontrar aquí?</h2>
+    <div class="list-container">
+      <ul>
+        <li><strong>Información General:</strong> Detalles sobre las funcionalidades principales y cómo funciona la plataforma.</li>
+        <li><strong>Tutoriales y Guías:</strong> Instrucciones paso a paso para utilizar las diferentes secciones y características de [Nombre de tu Aplicación/Sitio Web].</li>
+        <li><strong>Consejos y Trucos:</strong> Sugerencias para aprovechar al máximo las capacidades de la plataforma y optimizar tu experiencia.</li>
+        <li><strong>Preguntas Frecuentes (FAQ):</strong> Respuestas a las preguntas más comunes que los usuarios suelen tener.</li>
+        <li><strong>Información de Contacto:</strong> Formas de ponerte en contacto con nosotros si tienes alguna duda o necesitas soporte.</li>
+      </ul>
+    </div>
+
+    <h2>Tutoriales y Guías</h2>
+    <p>Consulta nuestras guías detalladas para aprender a utilizar cada función de [Nombre de tu Aplicación/Sitio Web].</p>
+
+    <h3>Cómo empezar</h3>
+    <ol>
+      <li>Crear una cuenta.</li>
+      <li>Configurar tu ordenador cliente.</li>
+      <li>Navegar por la interfaz principal.</li>
+    </ol>
+
+    <h3>Uso de las Tarjetas de Comandos</h3>
+    <p>Aprende a ejecutar comandos remotos utilizando las tarjetas interactivas.</p>
+    <ul>
+      <li>Entender los diferentes tipos de tarjetas.</li>
+      <li>Ejecutar un comando simple.</li>
+      <li>Utilizar comandos con parámetros.</li>
+    </ul>
+
+    <h2>Consejos y Trucos</h2>
+    <p>Descubre algunos consejos para sacar el máximo partido a [Nombre de tu Aplicación/Sitio Web].</p>
+    <ul>
+      <li>Mantén tu software cliente actualizado para un rendimiento óptimo.</li>
+      <li>Utiliza contraseñas seguras para proteger tu cuenta.</li>
+      <li>Explora todas las opciones de configuración para personalizar tu experiencia.</li>
+    </ul>
+
+    <h2>Preguntas Frecuentes (FAQ)</h2>
+    <div class="faq-item">
+      <h4>¿Qué es [Nombre de tu Aplicación/Sitio Web]?</h4>
+      <p>Es una plataforma web para [breve descripción del propósito].</p>
+    </div>
+    <div class="faq-item">
+      <h4>¿Cómo puedo empezar a usarlo?</h4>
+      <p>Sigue los pasos de nuestra sección de "Cómo empezar".</p>
+    </div>
+
+    <h2>Información de Contacto</h2>
+    <p class="contact-info">Si tienes alguna pregunta, sugerencia o necesitas soporte, no dudes en contactarnos a través de:</p>
+    <p class="contact-info"><strong>Email:</strong> [tu_email@ejemplo.com]</p>
+    <p class="contact-info"><strong>Formulario de Contacto:</strong> [enlace a tu formulario de contacto]</p>
+
+    <div class="legal-links">
+      <a href="/terminos-de-servicio">Términos de Servicio</a> |
+      <a href="/politica-de-privacidad">Política de Privacidad</a>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block footer_scripts %} {% endblock %}

@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 
@@ -7,35 +8,17 @@ from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse, Http404, JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime, now
+from django.views.decorators.http import require_POST
 
+from .config.config import logging
 from .models import *
 from . import utils
-
-import subprocess
 
 
 # Create your views here.
 def login_view(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            # Redirect to a success page, such as the user's dashboard
-            return redirect('home')  # Change 'dashboard' to the name of your dashboard URL pattern
-        else:
-            # Handle invalid login credentials (e.g., display an error message)
-            return render(request, 'bot/login.html', {'error': 'Invalid username or password'})
-    else:
-        # Handle GET request (e.g., display the login form)
-        return render(request, 'bot/login.html')
-
-
-def logout_view(request):
-    logout(request)
-    # Redirect to a desired page after logging out
-    return redirect('home')  # Redirect to the login page after logging out
+    # Handle GET request (e.g., display the login form)
+    return render(request, 'bot/login.html')
 
 
 def homePage(request):
@@ -53,9 +36,8 @@ def homePage(request):
 
 def activity_page(request, pk):
     activity = Activity.objects.get(id=pk)
-    programs = activity.program_set.all()
 
-    context = {'activity': activity, 'programs': programs}
+    context = {'activity': activity}
     return render(request, 'bot/activity.html', context)
 
 
@@ -95,9 +77,17 @@ def error_page():
 
 def component_programs_view(request):
     programs = Program.objects.all()
-    #utils.send_request_to_client(path)
+    # utils.send_request_to_client(path)
     programs_state = utils.refresh_processes_status()
     now_str = localtime(timezone.now()).strftime("%H:%M:%S")
     print(f"now: {now_str}, programs: {len(programs_state['keys']) > 0}")
     context = {'programs': programs, 'now_date': now_str, 'programs_state': programs_state}
     return render(request, 'bot/component_program.html', context=context)
+
+
+def about_view(request):
+    return render(request, 'bot/about.html', context={})
+
+
+def register_view(request):
+    return render(request, 'bot/register.html', context={})

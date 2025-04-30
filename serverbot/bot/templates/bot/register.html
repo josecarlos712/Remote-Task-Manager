@@ -1,0 +1,255 @@
+{% extends 'main.html' %}
+{% load static %}
+{% block title %} Registro {% endblock %} {% block header_style %}
+<style>
+  /* You might not need any styles here, or just very specific overrides */
+  /* If needed, add styles that are UNIQUE to the registration page */
+  .registration-container {
+    max-width: 400px;
+    margin: 2rem auto; /* Center the container */
+    padding: 2rem;
+    background-color: var(--color-background-container); /* Use background color */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow for emphasis */
+  }
+
+  .form-title {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: var(--color-text); /* Use text color */
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-body); /* Use text color */
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-foregroud); /* Use border color */
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: var(--color-background); /* Match input background */
+    color: var(--color-text-body); /* Use text color */
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: #007bff; /* Highlight on focus */
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  }
+
+  .btn-primary {
+    /* Override .btn styles for primary action */
+    background-color: #007bff;
+    color: var(--color-text);
+  }
+
+  .btn-primary:hover {
+    background-color: #0056b3;
+  }
+
+  .form-text {
+    font-size: 0.8em;
+    color: var(--color-text-body); /* Use text color */
+    margin-top: 0.25rem;
+  }
+</style>
+{% endblock %} {% block baseblock %}
+<div class="registration-container">
+  <h1 class="form-title">Registro de Usuario</h1>
+
+  <form id="form_register" method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <span class="error-message" id="username"></span>
+      <input type="text" id="input_username" name="username" required autocomplete="on" value="invitado" />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Correo Electrónico</label>
+      <span class="error-message" id="email"></span>
+      <input type="email" id="input_email" name="email" required autocomplete="on" value="invitado@gmail.com" />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Contraseña</label>
+      <span class="error-message" id="password"></span>
+      <input type="password" id="input_password" name="password" required autocomplete="on" value="invitado712" />
+      <small class="form-text">La contraseña debe tener al menos 8 caracteres.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="confirm_password">Confirmar Contraseña</label>
+      <span class="error-message" id="confirm_password"></span>
+      <input type="password" id="input_confirm_password" name="confirm_password" required autocomplete="on" value="invitado712" />
+    </div>
+
+    <div class="form-group">
+      <label for="first_name">Nombre</label>
+      <span class="error-message" id="first_name"></span>
+      <input type="text" id="input_first_name" name="first_name" autocomplete="on" value="Invitado" />
+    </div>
+
+    <div class="form-group">
+      <label for="last_name">Apellido</label>
+      <span class="error-message" id="last_name"></span>
+      <input type="text" id="input_last_name" name="last_name" autocomplete="on" />
+    </div>
+
+    <span class="error-message" id="non-field-errors"></span>
+
+    <button type="submit" class="btn btn-primary">Registrarse</button>
+  </form>
+</div>
+<script>
+  /**
+ * Performs client-side validation for the registration form.
+ * Assumes input elements with specific IDs are available in the DOM:
+ * input_username, input_email, password, input_confirm_password.
+ *
+ * @returns {boolean} True if the form is valid, false otherwise.
+ */
+function validateRegistrationForm() {
+  let isValid = true;
+
+  // Get input element references (assuming they are accessible in the scope)
+  // If not, you might need to get them inside this function:
+  const regUsernameInput = document.getElementById("input_username");
+  const regEmailInput = document.getElementById("input_email");
+  const regPasswordInput = document.getElementById("input_password"); // Note: ID is 'password'
+  const regConfirmPasswordInput = document.getElementById("input_confirm_password");
+  // const regFirstNameInput = document.getElementById("input_first_name"); // Not used in validation logic here
+  // const regLastNameInput = document.getElementById("input_last_name"); // Not used in validation logic here
+
+
+  // --- Username Validation ---
+  if (!regUsernameInput || regUsernameInput.value.trim() === "") {
+      isValid = false;
+      alert("Por favor, introduce un nombre de usuario.");
+      if (regUsernameInput) regUsernameInput.focus(); // Focus only if element exists
+      return false; // Return false immediately on first error
+  }
+
+  // --- Email Validation ---
+  if (!regEmailInput || !isValidEmail(regEmailInput.value.trim())) {
+      isValid = false;
+      alert("Por favor, introduce un correo electrónico válido.");
+      if (regEmailInput) regEmailInput.focus(); // Focus only if element exists
+      return false; // Return false immediately on first error
+  }
+
+  // --- Password Validation ---
+  if (!regPasswordInput || regPasswordInput.value.length < 8) {
+      isValid = false;
+      alert("La contraseña debe tener al menos 8 caracteres.");
+      if (regPasswordInput) regPasswordInput.focus(); // Focus only if element exists
+      return false; // Return false immediately on first error
+  }
+
+  // --- Confirm Password Validation ---
+  // Ensure both password inputs exist before comparing
+  if (!regPasswordInput || !regConfirmPasswordInput || regPasswordInput.value !== regConfirmPasswordInput.value) {
+      isValid = false;
+      alert("Las contraseñas no coinciden.");
+      if (regConfirmPasswordInput) regConfirmPasswordInput.focus(); // Focus only if element exists
+      return false; // Return false immediately on first error
+  }
+
+  return isValid; // Return true if all validations pass
+}
+
+/**
+* Checks if a given string is a valid email format.
+*
+* @param {string} email - The string to check.
+* @returns {boolean} True if the string is a valid email format, false otherwise.
+*/
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+  // --- Registration Form Logic ---
+  // Select the registration form - assuming your registration form is a <form> tag
+  const registrationForm = document.getElementById("form_register");
+
+  // Check if the registration form exists on the page
+  if (registrationForm) {
+    const regUsernameInput = document.getElementById("input_username");
+    const regEmailInput = document.getElementById("input_email");
+    const regPasswordInput = document.getElementById("input_password"); // Note: ID is 'password'
+    const regConfirmPasswordInput = document.getElementById("input_confirm_password");
+    const regFirstNameInput = document.getElementById("input_first_name");
+    const regLastNameInput = document.getElementById("input_last_name");
+
+    registrationForm.addEventListener("submit", function (event) {
+      event.preventDefault(); // Prevent the default form submission
+
+      // Perform client-side validation first (using registration inputs)
+      if (typeof validateRegistrationForm === "function" && !validateRegistrationForm()) {
+        return; // Stop if validation fails
+      } else if (typeof validateRegistrationForm !== "function") {
+        console.warn("validateRegistrationForm function not found. Skipping client-side validation.");
+      }
+
+      const registrationData = {
+        username: regUsernameInput.value.trim(),
+        email: regEmailInput.value.trim(),
+        password: regPasswordInput.value,
+        confirm_password: regConfirmPasswordInput.value,
+        first_name: regFirstNameInput.value.trim(),
+        last_name: regLastNameInput.value.trim(),
+      };
+
+      const registerUrl = '{% url "api_register" %}'; // Get the API register URL
+
+      if (typeof sendAjaxPostRequest === "function") {
+        sendAjaxPostRequest(registerUrl, registrationData)
+          .then(([success, responseData]) => {
+            if (success) {
+              // Handle successful registration (API status 'success')
+              console.log("Registration successful:", responseData);
+              alert("Registro exitoso!");
+              // Redirect to login page after successful registration
+              window.location.href = "/";
+            } else {
+              // Handle registration failure (API status 'error' or HTTP error)
+              console.error("Registration failed:", responseData);
+              // Assumes displayErrors is defined and accessible
+              if (typeof displayErrors === "function" && responseData && responseData.data) {
+                // Assuming validation errors are in responseData.data for ValidationErrorResponse
+                displayErrors(responseData.data);
+              } else if (responseData && responseData.message) {
+                // Display a general error message from the API response
+                alert("Error en el registro: " + responseData.message);
+              } else {
+                alert("Ocurrió un error durante el registro.");
+              }
+            }
+          })
+          .catch((error) => {
+            // Handle network errors or CSRF token missing
+            console.error("Registration request failed:", error);
+            alert("Error en la solicitud de registro: " + error);
+          });
+      } else {
+        console.error("sendAjaxPostRequest function not found. Cannot send AJAX request.");
+        alert("Error interno: No se puede enviar la solicitud de registro.");
+      }
+    });
+
+    // Note: validateRegistrationForm, isValidEmail, getCookie, displayErrors, and sendAjaxPostRequest
+    // are assumed to be defined and accessible in the scope where this script runs.
+  } else {
+    console.log("DEBUG: Registration form element not found.");
+  }
+</script>
+{% endblock %}

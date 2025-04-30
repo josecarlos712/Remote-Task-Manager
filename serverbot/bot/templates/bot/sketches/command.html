@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarjetas de Comandos (Compactas y En Línea)</title>
+    <style>
+        .command-card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px; /* Reduced gap for more compactness */
+            max-width: 60%; /* Set the maximum width to 60% of the screen */
+            margin: 0 auto; /* Center the container if needed */
+        }
+
+        .command-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px; /* Further reduced padding */
+            background-color: #f9f9f9;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            width: calc(16.66% - 5px); /* Approximately 1/6th width minus gap */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 3px; /* Reduced gap within card */
+            font-size: 0.8em; /* Further reduced font size */
+        }
+
+        .command-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+
+        .command-header h4 {
+            margin: 0;
+            margin-right: 3px;
+            font-size: 0.9em;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 3px;
+        }
+
+        .status-indicator.green { background-color: green; }
+        .status-indicator.red { background-color: red; }
+        .status-indicator.gray { background-color: gray; }
+
+        .command-actions {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: 3px;
+        }
+
+        .command-actions button {
+            padding: 4px 8px; /* Smaller button padding */
+            border: none;
+            border-radius: 3px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 0.7em; /* Smaller button font */
+        }
+
+        .command-actions button:hover {
+            background-color: #0056b3;
+        }
+
+        .command-param {
+            margin-top: 3px;
+        }
+
+        .command-param label {
+            display: block;
+            margin-bottom: 1px;
+            font-size: 0.75em;
+        }
+
+        .command-param input[type="text"],
+        .command-param select {
+            width: calc(70% - 8px); /* Reduced width for text fields */
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 0.75em;
+        }
+
+        .command-param input[type="radio"] {
+            margin-right: 2px;
+        }
+
+        .radio-group {
+            display: flex; /* Arrange radio buttons inline */
+            align-items: center;
+            gap: 5px;
+        }
+
+        .radio-group label {
+            display: inline; /* Ensure labels are inline */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="command-card-container">
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Apagar</h4>
+                <span class="status-indicator gray"></span>
+            </div>
+            <p>Apaga el ordenador.</p>
+            <div class="command-actions">
+                <button>Ejecutar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Descargar</h4>
+                <span class="status-indicator green"></span>
+            </div>
+            <p>Descarga un archivo.</p>
+            <div class="command-param">
+                <label for="url">URL:</label>
+                <input type="text" id="url" placeholder="URL">
+            </div>
+            <div class="command-actions">
+                <button>Ejecutar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Opción</h4>
+                <span class="status-indicator red"></span>
+            </div>
+            <p>Elige una opción.</p>
+            <div class="command-param">
+                <div class="radio-group">
+                    <input type="radio" id="opcion1" name="opcion" value="1">
+                    <label for="opcion1">A</label>
+                    <input type="radio" id="opcion2" name="opcion" value="2">
+                    <label for="opcion2">B</label>
+                </div>
+            </div>
+            <div class="command-actions">
+                <button>Ejecutar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Proceso</h4>
+                <span class="status-indicator gray"></span>
+            </div>
+            <p>Selecciona proceso.</p>
+            <div class="command-param">
+                <label for="proceso">Proceso:</label>
+                <select id="proceso">
+                    <option value="1">Uno</option>
+                    <option value="2">Dos</option>
+                    <option value="3">Tres</option>
+                </select>
+            </div>
+            <div class="command-actions">
+                <button>Ejecutar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Mensaje</h4>
+                <span class="status-indicator green"></span>
+            </div>
+            <p>Escribe mensaje.</p>
+            <div class="command-param">
+                <label for="mensaje">Mensaje:</label>
+                <input type="text" id="mensaje" placeholder="Mensaje">
+            </div>
+            <div class="command-actions">
+                <button>Enviar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Volumen</h4>
+                <span class="status-indicator red"></span>
+            </div>
+            <p>Nivel volumen.</p>
+            <div class="command-param">
+                <div class="radio-group">
+                    <input type="radio" id="vol_b" name="vol" value="b">
+                    <label for="vol_b">Bajo</label>
+                    <input type="radio" id="vol_m" name="vol" value="m">
+                    <label for="vol_m">Medio</label>
+                    <input type="radio" id="vol_a" name="vol" value="a">
+                    <label for="vol_a">Alto</label>
+                </div>
+            </div>
+            <div class="command-actions">
+                <button>Establecer</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Acción</h4>
+                <span class="status-indicator gray"></span>
+            </div>
+            <p>Elige acción.</p>
+            <div class="command-param">
+                <label for="accion">Acción:</label>
+                <select id="accion">
+                    <option value="r">Reiniciar</option>
+                    <option value="c">Cerrar Sesión</option>
+                    <option value="b">Bloquear</option>
+                </select>
+            </div>
+            <div class="command-actions">
+                <button>Ejecutar</button>
+            </div>
+        </div>
+
+        <div class="command-card">
+            <div class="command-header">
+                <h4>Buscar</h4>
+                <span class="status-indicator green"></span>
+            </div>
+            <p>Buscar archivo.</p>
+            <div class="command-param">
+                <label for="archivo">Archivo:</label>
+                <input type="text" id="archivo" placeholder="Nombre">
+            </div>
+            <div class="command-actions">
+                <button>Buscar</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -4,6 +4,14 @@
     <a href="{% url 'activity' activity.id %}">
       <h3>{{ activity.name }}</h3>
     </a>
+    <p class="meta">Publicado por 
+      {% if activity.user %}
+          {{ activity.user.username }}
+      {% else %}
+          [eliminado]
+      {% endif %} 
+      el {{ activity.date|date:"d-m-Y" }}</span>
+      {% if activity.hour %}a las {{ activity.hour|time:"H:i:s" }}{% endif %}</span></p>
     <p>{{ activity.description }}</p>
   </div>
   {% endfor %}

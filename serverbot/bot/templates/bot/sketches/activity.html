@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actividad - Título de la Actividad</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .activity-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .activity-header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .activity-title {
+            font-size: 24px;
+            margin-top: 0;
+            color: #333;
+        }
+        .activity-meta {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        .activity-body {
+            line-height: 1.6;
+            color: #555;
+        }
+        .comments-section {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .comments-title {
+            font-size: 20px;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .comment {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .comment-header {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 5px;
+        }
+        .comment-body {
+            color: #555;
+            line-height: 1.4;
+        }
+        .add-comment-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .add-comment-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .comment-form textarea {
+            width: calc(100% - 12px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        .comment-form button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .comment-form button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="activity-container">
+        <div class="activity-header">
+            <h1 class="activity-title">Título de la Actividad</h1>
+            <p class="activity-meta">Publicado por Usuario X el 26 de Marzo de 2025 a las 10:58</p>
+        </div>
+        <div class="activity-body">
+            <p>Este es el cuerpo de texto de la actividad. Aquí se podrá detallar la información relevante, compartir ideas, publicar anuncios, o cualquier otro contenido que sea útil para los usuarios del sistema.</p>
+            <p>Se pueden incluir varios párrafos para organizar mejor la información y hacerla más legible.</p>
+            <ul>
+                <li>Incluso se pueden usar listas.</li>
+                <li>Para destacar puntos importantes.</li>
+            </ul>
+            <p>Y también se pueden añadir enlaces a otros recursos o a otras partes del sistema.</p>
+        </div>
+    </div>
+
+    <div class="comments-section">
+        <h2 class="comments-title">Comentarios</h2>
+
+        <div class="comment">
+            <div class="comment-header">
+                Comentario de Usuario A el 26 de Marzo de 2025 a las 11:05
+            </div>
+            <div class="comment-body">
+                ¡Muy interesante esta actividad! Creo que sería útil añadir también la posibilidad de...
+            </div>
+        </div>
+
+        <div class="comment">
+            <div class="comment-header">
+                Respuesta de Usuario B el 26 de Marzo de 2025 a las 11:10
+            </div>
+            <div class="comment-body">
+                Estoy de acuerdo con Usuario A. Sería genial tener esa funcionalidad.
+            </div>
+        </div>
+
+        </div>
+
+    <div class="add-comment-section">
+        <h3 class="add-comment-title">Añadir un Comentario</h3>
+        <form class="comment-form">
+            <textarea placeholder="Escribe tu comentario aquí..."></textarea>
+            <button type="submit">Publicar Comentario</button>
+        </form>
+    </div>
+
+</body>
+</html>

@@ -1,22 +1,138 @@
 <header>
-    <div class="header-left">
-        <a href="{% url 'home' %}">
-            <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-                <path d="M32 0a32 32 0 1032 32A32 32 0 0032 0zm0 60A28 28 0 114 32 28.031 28.031 0 0132 60z"
-                      fill="#ccc"/>
-                <path d="M25 16h14v2H25zm0 4h14v2H25zm0 4h14v2H25zm-8 12v6h30v-6z" fill="#000"/>
-            </svg>
-        </a>
-    </div>
-    <div class="header-center">
-        <a href="{% url 'home' %}"><h1>Remote Task Manager</h1></a>
-    </div>
-    <div class="header-right">
-        {% if user.is_authenticated %}
-        <span>{{ user.username }}</span>
-        <a href="{% url 'logout' %}">Log out</a>
-        {% else %}
-        <a href="{% url 'login' %}">Log in</a>
-        {% endif %}
-    </div>
+  <div class="header-left">
+    <a href="{% url 'home' %}">
+      <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 0a32 32 0 1032 32A32 32 0 0032 0zm0 60A28 28 0 114 32 28.031 28.031 0 0132 60z" fill="#ccc" />
+        <path d="M25 16h14v2H25zm0 4h14v2H25zm0 4h14v2H25zm-8 12v6h30v-6z" fill="#000" />
+      </svg>
+    </a>
+  </div>
+  <div class="header-center">
+    <a href="{% url 'home' %}"><h1>Remote Task Manager</h1></a>
+  </div>
+  <div class="header-right">
+    {% if user.is_authenticated %}
+    <span>{{ user.username }}</span>
+    <a id="link_logout" href="">Log out</a>
+    {% else %}
+    <a href="{% url 'login' %}">Log in</a>&nbsp;|
+    <a href="{% url 'register' %}">Register</a>
+    {% endif %}
+  </div>
 </header>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Find the logout link in the header
+    // Assuming the logout link is the one with href pointing to {% url 'logout' %}
+    // You might want to add a specific ID or class to the logout link for better selection, e.g., <a href="..." id="logout-link">Log out</a>
+    const logoutLink = document.getElementById("link_logout");
+
+    // Check if the logout link exists on the page
+    if (logoutLink) {
+      logoutLink.addEventListener("click", function (event) {
+        event.preventDefault(); // Prevent the default link navigation
+
+        console.log("DEBUG: Logout link clicked. Preventing default navigation.");
+
+        // Confirm with the user before logging out (optional but recommended)
+        // if (confirm("¿Estás seguro de que quieres cerrar sesión?")) {
+        sendLogoutRequestAJAX();
+
+        // }
+      });
+    } else {
+      console.log("User is NOT authenticated (logout link not found).");
+    }
+
+    // Function to send the AJAX logout request
+    function sendLogoutRequestAJAX() {
+      const xhr = new XMLHttpRequest();
+      const url = '{% url "api_logout" %}'; // Make sure this URL is defined in your urls.py
+
+      xhr.open("POST", url, true);
+
+      xhr.setRequestHeader("Content-Type", "application/json");
+      const csrfToken = getCookie("csrftoken");
+      if (csrfToken) {
+        xhr.setRequestHeader("X-CSRFToken", csrfToken);
+        console.log("DEBUG: X-CSRFToken header set for logout request.");
+      } else {
+        console.warn("DEBUG: CSRF token not found. Logout request might fail.");
+        alert("Error: CSRF token no encontrado. No se puede cerrar sesión.");
+        return;
+      }
+
+      xhr.onload = function () {
+        console.log("DEBUG: XMLHttpRequest status (Logout):", xhr.status);
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            console.log("Logout Response:", data);
+
+            // --- FIX: Check for data.success === true or data.status === 'success' ---
+            if (data.success === true || data.status === "success") {
+              // --- END FIX ---
+              //alert("Sesión cerrada exitosamente."); // Inform the user
+              // Redirect the user to the login page or home page after successful logout
+              window.location.reload(); // Example: Redirect to login page
+              // Or window.location.href = "/"; // Example: Redirect to home page
+            } else {
+              // Handle API-level errors (where status is 'error' or success is false)
+              console.log("Logout failed:", data.message); // Assuming message field for errors
+              alert("Error al cerrar sesión: " + data.message);
+            }
+          } catch (e) {
+            console.error("Error parsing JSON response (Logout):", e);
+            alert("Error procesando la respuesta del servidor al cerrar sesión.");
+          }
+        } else {
+          // Handle HTTP errors (status codes outside 200-299)
+          console.error("HTTP Error (Logout):", xhr.status, xhr.statusText);
+          try {
+            // Attempt to parse the error response body as JSON
+            const errorData = JSON.parse(xhr.responseText);
+            console.log("Logout Error Response Body:", errorData);
+
+            if (errorData.message) {
+              // Display the error message from the API response
+              alert("Error del servidor al cerrar sesión: " + errorData.message);
+            } else {
+              // Fallback to the HTTP status text
+              alert("Ocurrió un error en el servidor al cerrar sesión. Estado: " + xhr.status);
+            }
+          } catch (e) {
+            console.error("Error parsing logout error response JSON:", e);
+            alert("Ocurrió un error en el servidor al cerrar sesión. Estado: " + xhr.status);
+          }
+        }
+      };
+
+      // Define the function to handle network errors (e.g., server unreachable)
+      xhr.onerror = function () {
+        console.error("Network Error (Logout).");
+        alert("Error de red al intentar cerrar sesión. Inténtalo de nuevo más tarde.");
+      };
+
+      // Send the request (no body needed for a simple logout POST)
+      xhr.send();
+    }
+
+    // --- Include the getCookie function here or ensure it's accessible ---
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          let cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+  });
+</script>
