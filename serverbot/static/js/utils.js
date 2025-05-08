@@ -96,6 +96,65 @@ function sendAjaxPostRequest(url, jsonData) {
 }
 
 /**
+ * Sends an AJAX POST request to a specified URL expecting HTML (text) response.
+ *
+ * @param {string} url - The API endpoint URL.
+ * @returns {Promise<[boolean, string]>} A Promise that resolves with a tuple:
+ * - [true, htmlContent]: If the request is successful (HTTP 2xx). htmlContent is the response text.
+ * - [false, errorMessage]: If a network error or HTTP error occurs. errorMessage is a string.
+ */
+function sendAjaxPostRequestText(url) {
+  return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open("POST", url, true); // Method, URL, Asynchronous (true)
+
+      // Set request headers
+      // Note: Content-Type is often not strictly necessary for POST if sending empty body,
+      // but setting it to text/html might be semantically clearer if the server expects it.
+      // If your server *requires* a specific Content-Type for empty POST, set it here.
+      // xhr.setRequestHeader("Content-Type", "text/html"); // Optional, depending on server needs
+
+      // Retrieve and set the CSRF token header
+      // Assumes getCookie is defined and accessible
+      const csrfToken = getCookie("csrftoken");
+      if (csrfToken) {
+           xhr.setRequestHeader("X-CSRFToken", csrfToken);
+      } else {
+           console.warn(`CSRF token not found for ${url}. Request might fail.`);
+           // Decide how to handle missing CSRF token - reject or proceed?
+           // For most POST requests in Django, it's required.
+           reject("CSRF token not found.");
+           return; // Stop the function if token is missing
+      }
+
+      // Define the function to handle the response
+      xhr.onload = function () {
+          console.log(`DEBUG: AJAX POST status for ${url}: ${xhr.status}`);
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+              // HTTP success status
+              resolve([true, xhr.responseText]); // Resolve with success status and the response text
+          } else {
+              // HTTP error status (4xx, 5xx)
+              console.error(`HTTP Error for ${url}: ${xhr.status} ${xhr.statusText}`);
+              // For text responses, the error body might not be JSON. Return status text.
+              resolve([false, `HTTP Error: ${xhr.status} ${xhr.statusText}`]);
+          }
+      };
+
+      // Define the function to handle network errors
+      xhr.onerror = function () {
+          console.error(`Network Error for ${url}.`);
+          reject("Network Error."); // Reject the promise on network error
+      };
+
+      // Send the request (no body needed for this specific function)
+      xhr.send(); // Sending no body for this HTML fetching function
+  });
+}
+
+/**
  * Retrieves the value of a specific cookie by its name.
  * This function is commonly used to get the CSRF token cookie in Django projects.
  *

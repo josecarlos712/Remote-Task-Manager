@@ -1,37 +1,34 @@
+import configparser
 import logging
 import os
 import re
 from logging.handlers import TimedRotatingFileHandler
+
+from django.conf import settings
 
 
 class Configuration():
     def __init__(self, config_path='configuration.ini'):
         self._system_info = {}
         self.logging = None
-        self.config_path = config_path
+        self.config_path = f"bot/config/{config_path}"
         self._settings = {}
-        self.start()
 
-    def ready(self):
-        """This function is executed when the server starts."""
-        # Initialize logging first (if you have app-specific logging)
-        self.logging_configuration()
+    # This function is executed on the start of the server to check if everything is okay.
+    def initialize_server(self):
+        if not self.logging:
+            self.logging_configuration()
 
         # Perform startup tasks in the correct order
+        self.logging.info("Starting API Server...")
         self.load_config()
         self.load_specifications()
+        self.logging.debug(f"Loading configuration and specifications...\n{self._settings}")
         self.check_files()
 
         self.logging.log(logging.INFO, "API Server started successfully.")
 
-    # This function is executed on the start of the server to check if everything is okay.
-    def start(self):
-        if not self.logging:
-            self.logging_configuration()
-        # There can't be any logging until the logging initialization
-        #self.load_config()
-        #self.load_specifications()
-        #self.check_files()
+        return True, "Server initialized successfully."
 
     def logging_configuration(self) -> logging.Logger:  # Changed return type hint to logging.Logger
         log_file = "logs/system.log"
@@ -198,17 +195,18 @@ class Configuration():
 
             # Create the file with some default content (INI format example)
             default_content = """
-    [API]
-    api_key = YOUR_API_KEY_HERE
-    # Add other default settings here
-
-    [System]
-    log_level = INFO
-    # Add other system settings
-    """
+                [API]
+                api_key = YOUR_API_KEY_HERE
+                # Add other default settings
+            
+                [System]
+                log_level = INFO
+                # Add other system settings
+                """
             try:
                 with open(self.config_path, 'w') as f:
                     f.write(default_content.strip())  # Write default content and remove leading/trailing whitespace
+                    f.close()
                 if self.logging:
                     self.logging.info(f"Default configuration file created at: {self.config_path}")
                 else:
@@ -236,7 +234,7 @@ class Configuration():
                     self._settings[section.lower()][key.lower()] = self.parse_value(value)  # Keep keys lowercase
 
             if self.logging:
-                self.logging.info(f"Configuration loaded successfully from {self.config_path}")
+                self.logging.info(f"Configuration loaded successfully on {self.config_path}")
 
         except configparser.Error as e:
             if self.logging:
@@ -257,7 +255,6 @@ class Configuration():
             self._settings['api'] = {}
         if 'api_key' not in self._settings['api']:
             self._settings['api']['api_key'] = 'DEFAULT_API_KEY'  # Provide a fallback default
-
 
     def parse_value(self, value):
         """Converts string values to appropriate data types."""
@@ -287,14 +284,23 @@ class Configuration():
     def check_files(self):
         """Check for important directories and files inside the proyect."""
         # Checking downloads
-        is_absolute_path = bool(re.match(r"^[A-Za-z]:[\\/]", self._settings.get("path_downloads")))
-        downloads_folder = os.path.join(os.getcwd(), "downloads") if is_absolute_path else self._settings.get(
-            "path_downloads")
-        try:
-            os.makedirs(downloads_folder, exist_ok=True)
-        except Exception as e:
-            self.logging.log(logging.ERROR, f"CheckFiles ERROR: Exception on os.makedirs - {e}")
-        self.logging.log(logging.DEBUG, "CheckFiles OK")
+        downloads_folder = os.path.join(settings.BASE_DIR, 'bot', self["paths"]["path_downloads"])
+        is_absolute_path = bool(re.match(r"^[A-Za-z]:[\\/]", downloads_folder))
+
+        if not os.path.isdir(downloads_folder) and is_absolute_path:
+            # If the download folder doesn't exist, create it
+            try:
+                os.makedirs(downloads_folder, exist_ok=True)
+                self.logging.debug(f"CheckFiles: Created downloads folder at {downloads_folder}")
+            except Exception as e:
+                self.logging.log(logging.ERROR, f"CheckFiles ERROR: Exception on os.makedirs - {e}")
+                return False, f"CheckFiles ERROR: Exception on os.makedirs - {e}"
+            self.logging.log(logging.DEBUG, "CheckFiles OK")
+        elif not os.path.isdir(downloads_folder):
+            self.logging.debug(f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'.")
+            return False, f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'."
+
+        return True, "CheckFiles OK"
 
     def __getitem__(self, key, default=None):
         """Retrieves a configuration value given the key."""
@@ -304,3 +310,4 @@ class Configuration():
             return self._system_info.get(key, default if default else "Unknown")
         else:
             self.logging.log(logging.ERROR, f"{key} is not in suported dicts on Configuration.")
+            return default if default else None

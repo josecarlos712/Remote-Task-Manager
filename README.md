@@ -3,15 +3,52 @@
 Remote Task Manager v0.1.0. Basic web interface
 Remote Task Manager v0.2.0. Adding different capabilities to the server.
 Remote Task Manager v0.3.0. Loging, logout, register functionality.
+Remote Task Manager v0.4.0. Creating the commands system.
+Remote Task Manager v0.4.1. Creating the commands system. Adjusting models. 
+
 
 This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.
 
 
 ## **Capabilities**
 
-**NEW:** The function for login, logout and register works.
+**NEW:** Creating the commands system.
 
-**User Authentication:** The application now includes robust user authentication features. Users can register for a new account, log in to access their personalized dashboard, and securely log out. These processes are handled via API endpoints (/api/accounts/register, /api/accounts/login, /api/accounts/logout) using asynchronous JavaScript requests (XMLHttpRequest). Client-side JavaScript functions like sendAjaxPostRequest, getCookie, and displayErrors are utilized to manage the communication with the API, handle CSRF protection, and provide user feedback (including displaying validation errors received from the server).
+**Adjusting models.** Adjusting the models to be more flexible and to be able to add new commands.
+
+## **New version: v0.4.1**
+Commands Feature
+The application includes a robust system for managing and executing commands on remote clients. This feature allows authenticated and authorized users to trigger specific actions on connected client machines via the web interface.
+
+Key components of the Commands feature include:
+
+Command Model: Defines the structure for individual commands available for execution. Each Command is linked to a specific Client and has a unique command_id within that client. It stores metadata like name, description, the Python handler path for server-side logic (though execution is forwarded), and expected args (as a JSON list).
+
+Client Model: Represents a remote client machine. Each Client has a unique local_ip and port. It is associated with a main_user (nullable) and a ManyToManyField (allowed_users) to specify which additional users have permission to access and execute commands on this client.
+
+UserSettings Model: Linked to the User model via a OneToOneField, this model stores user-specific settings. Crucially for commands, it holds a JSONField (client_api_keys) which stores a dictionary mapping client IPs to the secret API keys required to authenticate requests sent from the server to the client application.
+
+/api/command/execute/ Endpoint: This Django API view handles incoming requests to execute a command. It performs the following steps:
+
+Authenticates the user (@login_required).
+
+Validates the incoming JSON data (requires client_id, command_id, and optionally args/kwargs).
+
+Retrieves the specified Client object from the database.
+
+Checks if the requesting user is allowed to access the retrieved client using the Client.is_user_allowed() method.
+
+Retrieves the secret API key for the target client from the user's UserSettings.
+
+Constructs an outgoing HTTP POST request to the client application's API endpoint (http://<client_ip>:<client_port>/api/command/execute/).
+
+Includes the command_id, args, kwargs, and importantly, the secret API key in a custom header (e.g., X-Client-API-Key) in the outgoing request.
+
+Forwards the response received from the client application back to the original web client.
+
+Includes comprehensive error handling for invalid requests, permission issues, client not found, and communication errors with the client application (timeouts, connection errors, client-side errors).
+
+This architecture ensures that command execution requests are authenticated, authorized based on user-to-client permissions, and securely forwarded to the correct client application using a shared secret API key for validation on the client side.
 
 ## **Function definitions**
 

@@ -1,55 +1,240 @@
 import json
-from datetime import datetime
 
+import requests
 from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from rest_framework.authtoken.models import Token
 
 from . import urls
-from .config.config import logging
+import logging
 from .utils import APIResponse
-from .utils.APIResponse import BadMethodErrorResponse, SuccessResponse
-from .utils.utils import read_config, sync_programs_from_json
-from .utils.api_utils import APIFunction
+from .utils.APIResponse import (
+    SuccessResponse,
+    BadMethodErrorResponse,
+    ValidationErrorResponse,
+    InternalErrorResponse,
+    BadRequestResponse,
+    NotFoundResponse,
+    ErrorResponse,
+    ForbiddenErrorResponse,
+)
+from .commands.commands_utils import get_command_by_id
+from .models import Command, Client
 
-from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
-import random
 
-# Diccionario que mapea las claves a las funciones que se deben ejecutar
-api_functions = {}
+# Dict to store avalilable and loaded commands to avoid DB queries.
+api_commands = []
+logger = logging.getLogger(__name__)
 
 
+# @csrf_protect
+# @require_POST
+# def api_data(request):
+#     _method = 'POST'
+#     # If the request is None, the function returns if the function is 'GET' or 'POST'
+#     if not request:
+#         return _method
+#
+#     if request.method == "POST":
+#         try:
+#             data: json = json.loads(request.body)
+#             # keyword = data.get("keyword")
+#
+#             # Buscar la función asociada al keyword en el diccionario
+#             api_function: APIFunction = api_functions.get(data['keyword'])
+#
+#             if api_function:
+#                 # Llamar a la función correspondiente
+#                 result = api_function.send_request()  # Ejecutar send_request() del objeto APIFunction
+#                 return JsonResponse(result)
+#             else:
+#                 return JsonResponse({"error": "Invalid keyword."}, status=400)
+#
+#         except json.JSONDecodeError:
+#             return JsonResponse({"error": "Invalid JSON."}, status=400)
+#     else:
+#         return JsonResponse({"error": "Method not allowed."}, status=405)
+
+
+@login_required
 @csrf_protect
 @require_POST
-def api_data(request):
+def api_command(request):
     _method = 'POST'
     # If the request is None, the function returns if the function is 'GET' or 'POST'
     if not request:
         return _method
 
-    if request.method == "POST":
+    """
+        Handles command execution requests via API.
+        Requires authentication.
+        Receives JSON data with 'client_id', 'command_id', and optional 'args'/'kwargs'.
+        Verifies if the requesting user is allowed to access the specified client.
+        Forwards the command execution request to the client application's API.
+        """
+    command_endpoint = "api/command/execute/"  # Endpoint to forward the command to the client application
+
+    try:
+        data = json.loads(request.body)
+        logger.debug(f"api_command() - Received data: {data}")
+
+    except json.JSONDecodeError:
+        logger.error("api_command() - Invalid JSON format received.")
+        api_response = ErrorResponse(message="Datos JSON inválidos.")
+        return JsonResponse(api_response.to_dict(), status=400)
+
+    # Get required data from the request
+    client_id = data.get('client_id')
+    command_id = data.get('command_id')
+    args = data.get('args', [])  # Default to empty list
+    kwargs = data.get('kwargs', {})  # Default to empty dict
+
+    # Validate required fields in the incoming request
+    if not client_id:
+        logger.warning("api_command() - Missing 'client_id' in request data.")
+        api_response = ErrorResponse(message="Falta el ID del cliente.")
+        return JsonResponse(api_response.to_dict(), status=400)
+
+    if not command_id:
+        logger.warning("api_command() - Missing 'command_id' in request data.")
+        api_response = ErrorResponse(message="Falta el ID del comando.")
+        return JsonResponse(api_response.to_dict(), status=400)
+
+    # Basic type checks for args and kwargs
+    if not isinstance(args, list):
+        logger.warning(f"api_command() - 'args' field is not a list: {args}")
+        api_response = ErrorResponse(message="'args' debe ser una lista.")
+        return JsonResponse(api_response.to_dict(), status=400)
+
+    if not isinstance(kwargs, dict):
+        logger.warning(f"api_command() - 'kwargs' field is not a dictionary: {kwargs}")
+        api_response = ErrorResponse(message="'kwargs' debe ser un diccionario.")
+        return JsonResponse(api_response.to_dict(), status=400)
+
+    # Retrieve the Client object
+    logger.debug(f"api_command() - Attempting to retrieve client with ID: {client_id}")
+    try:
+        client_obj = Client.objects.get(pk=client_id)
+        logger.debug(f"api_command() - Successfully retrieved client: {client_obj}")
+
+    except ObjectDoesNotExist:
+        logger.warning(f"api_command() - Client with ID '{client_id}' not found.")
+        api_response = NotFoundResponse(f"Cliente con ID '{client_id}' no encontrado.")
+        return JsonResponse(api_response.to_dict(), status=404)
+
+    except MultipleObjectsReturned:
+        # Should not happen for primary key lookup, but included for robustness
+        logger.error(f"api_command() - Multiple clients found for ID '{client_id}'. Database error?")
+        api_response = InternalErrorResponse("Error interno: Múltiples clientes encontrados.")
+        return JsonResponse(api_response.to_dict(), status=500)
+
+    except Exception as e:
+        logger.error(f"api_command() - Error retrieving client '{client_id}': {e}", exc_info=True)
+        api_response = InternalErrorResponse("Ocurrió un error al obtener el cliente.")
+        return JsonResponse(api_response.to_dict(), status=500)
+
+    # --- Check User Allowance for the Client ---
+    user = request.user  # Get the currently authenticated user
+
+    # Use the is_user_allowed method of the Client model
+    if not client_obj.is_user_allowed(user):
+        logger.warning(
+            f"api_command() - User '{user.username}' is not on the allowance list {client_obj.allowed_users}, so is not allowed to access client {client_obj}.")
+        api_response = ForbiddenErrorResponse(message="No tienes permiso para acceder a este cliente.")
+        return JsonResponse(api_response.to_dict(), status=403)
+
+    # Get user api key stored in the user
+    # TODO: Define CLIENT_API_SECRET_KEY in your settings.py
+    client_api_key = getattr(settings, 'CLIENT_API_SECRET_KEY', None)
+
+    if not client_api_key:
+        logger.error("CLIENT_API_SECRET_KEY is not defined in settings.")
+        # Handle this critical configuration error - maybe return a 500 Internal Server Error
+        api_response = InternalErrorResponse(message="Server configuration error: Client API key is missing.")
+        return JsonResponse(api_response.to_dict(), status=500)
+
+    # --- Forward the command execution request to the Client Application ---
+    client_api_url = f"http://{client_obj.local_ip}:{client_obj.port}/{command_endpoint}"
+
+    # Prepare the payload to send to the client application
+    client_payload = {
+        'command_id': command_id,
+        'args': args,
+        'kwargs': kwargs,
+        # TODO: Include any other necessary data for the client application
+        # e.g., user identification if the client needs to know which user initiated the command
+        # 'user_id': user.pk,
+    }
+
+    # Prepare the headers, including the custom API key header
+    # Use a custom header name like 'X-Client-API-Key'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Client-API-Key': client_api_key  # Add your secret key here
+        # TODO: Add any other headers required by the client API
+    }
+
+    logger.debug(
+        f"api_command() - Forwarding command '{command_id}' to client {client_obj} at {client_api_url} with payload: {client_payload}")
+
+    try:
+        # Make the POST request to the client application's API
+        # Pass the headers dictionary to the requests.post call
+        client_response = requests.post(client_api_url, json=client_payload, headers=headers,
+                                        timeout=10)  # Added headers
+
+        # Check the HTTP status code of the response from the client
+        client_response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
+
+        # Attempt to parse the JSON response from the client application
+        # Assuming the client application's API returns JSON
+        client_result = client_response.json()
+        logger.info(f"api_command() - Received response from client {client_obj}: {client_result}")
+
+        # Forward the client's response back to the original web client
+        # TODO: Review the structure of client_result and potentially wrap it
+        # in a standard APIResponse format if the client's response format is inconsistent.
+        # For now, we'll return the client's JSON response directly.
+        return JsonResponse(client_result, status=client_response.status_code)  # Use the client's status code
+
+    except requests.exceptions.Timeout:
+        logger.error(f"api_command() - Request to client {client_obj} at {client_api_url} timed out.")
+        api_response = InternalErrorResponse(f"La solicitud al cliente {client_obj} excedió el tiempo de espera.")
+        return JsonResponse(api_response.to_dict(), status=504)  # 504 Gateway Timeout
+
+    except requests.exceptions.ConnectionError:
+        logger.error(f"api_command() - Could not connect to client {client_obj} at {client_api_url}.")
+        api_response = InternalErrorResponse(f"No se pudo conectar con el cliente {client_obj}.")
+        return JsonResponse(api_response.to_dict(), status=503)  # 503 Service Unavailable
+
+    except requests.exceptions.RequestException as e:
+        # Catch any other requests-related errors (e.g., HTTPError from raise_for_status)
+        logger.error(f"api_command() - Error forwarding request to client {client_obj} at {client_api_url}: {e}",
+                     exc_info=True)
         try:
-            data: json = json.loads(request.body)
-            # keyword = data.get("keyword")
-
-            # Buscar la función asociada al keyword en el diccionario
-            api_function: APIFunction = api_functions.get(data['keyword'])
-
-            if api_function:
-                # Llamar a la función correspondiente
-                result = api_function.send_request()  # Ejecutar send_request() del objeto APIFunction
-                return JsonResponse(result)
-            else:
-                return JsonResponse({"error": "Invalid keyword."}, status=400)
-
+            # Attempt to get error details from the client response body if available
+            error_details = client_response.json()
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON."}, status=400)
-    else:
-        return JsonResponse({"error": "Method not allowed."}, status=405)
+            error_details = client_response.text  # Fallback to text if not JSON
+
+        api_response = InternalErrorResponse(
+            f"Error al comunicar con el cliente {client_obj}. Client responded with status {client_response.status_code}: {error_details}")
+        return JsonResponse(api_response.to_dict(),
+                            status=client_response.status_code if client_response.status_code >= 400 else 500)  # Use client's error status or 500
+
+    except Exception as e:
+        # Catch any other unexpected errors during the forwarding process
+        logger.error(
+            f"api_command() - An unexpected error occurred during client communication for command '{command_id}' on client {client_obj}: {e}",
+            exc_info=True)
+        api_response = InternalErrorResponse(
+            f"Ocurrió un error inesperado al procesar el comando '{command_id}'.", error=str(e))
+        return JsonResponse(api_response.to_dict(), status=500)
 
 
 @csrf_protect
@@ -218,7 +403,7 @@ def api_login(request):
 
 @csrf_protect
 @require_POST
-def execute_function(request):
+def api_command(request):
     _method = 'POST'
     # If the request is None, the function returns if the function is 'GET' or 'POST'
     if not request:
@@ -233,14 +418,27 @@ def execute_function(request):
         return JsonResponse({"error": "Missing command."}, status=400)  # 400 for missing command
 
     command = data.get('command')
-    api_function = api_functions.get(command)  # Find the corresponding function
+    # TODO: Get the command from the database. If null, do nothing (maybe is an uninplemented command).
+    # Checks if the command is in the list of available commands
+    if command not in api_commands:
+        return JsonResponse({"error": "api_command() - Command not found."}, status=404)  # 404 for command not found
 
-    if not api_function:  # If the function is not found
-        return JsonResponse({"error": "Command not found."}, status=404)  # 404 for not found command
+    # Get the command from the database
+    command_obj: Command = get_command_by_id(command)
+    if not command_obj:
+        return JsonResponse({"error": "api_command() - It could not access to the commands on the DB."}, status=404)
 
-    # Call the corresponding API function
-    result = api_function.send_request()  # Execute send_request() of the APIFunction
-    return JsonResponse(result)
+    # Get the arguments from the request
+    args = data.get('args', [])  # Default to an empty dictionary if no args are provided
+
+    # Call the command function
+    try:
+        command_obj()
+    except Exception as e:
+        # Handle the case where the command execution fails
+        return JsonResponse({"error": f"api_command() - Command '{command}' execution failed: {str(e)}"}, status=500)
+
+    return JsonResponse({"message": f"Command '{command}' executed successfully."}, status=200)
 
 
 @csrf_protect

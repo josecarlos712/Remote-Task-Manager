@@ -1,0 +1,130 @@
+graph
+    subgraph "Authentication Flow"
+        direction LR
+        UserAuthenticated{User Authenticated?} --> |Yes| AlreadyAuthenticated{Already authenticated?}
+        %% If not authenticated, proceed directly to guest sign-up
+        AlreadyAuthenticated --> |Yes| Cookie[Cookie]
+        AlreadyAuthenticated --> |No| LoginPage[Login page]
+        AlreadyAuthenticated --> |No| RegisterPage[Register page]
+        LoginPage --> AuthenticateUser[Auth user]
+        RegisterPage --> CreateUser[Create user]
+        CreateUser --> AuthenticateUser
+        Cookie --> AuthenticateUser
+
+        UserAuthenticated --> |No| SignUpAsGuest[Sign Up as Guest]
+
+        SignUpAsGuest --> GuestUserExit(Guest User)
+        AuthenticateUser --> AuthenticatedUserExit(Auth User)
+        %% Exit point for guest
+    end
+
+    AuthenticatedUserExit --> StartUserAction
+    %% Connect authenticated exit to main flow
+    GuestUserExit --> HomePage[Home Page]
+    %% Connect guest exit to guest mode state
+
+    subgraph "Web Server (Django)"
+        direction LR
+        HomePage[Home Page]
+        %% Start auth user action
+        StartUserAction[Start: User Action] --> WebInterface[Web Interface]
+        WebInterface --> Commands[Commands]
+        WebInterface --> Programs[Programs]
+        %% Activities
+        WebInterface --> PostMessage[Post message]
+        WebInterface --> CreateActivity[Create activity]
+        PostMessage --> ApiActivityMessage[api/activity/message]
+        CreateActivity --> ApiActivityCreate[api/activity/create]
+
+        %% Command
+        Commands --> ApiCommandExecute[api/command/execute]
+
+        %% Program
+        Programs --> ApiProgramExecute[api/program/execute]
+
+        %% API output
+        ASSend(API Client)
+        ApiCommandExecute --> ASSend
+        ApiProgramExecute --> ASSend
+
+        %% API input (port 8000)
+        ASReceive(API:8000)
+        ASReceive --> Commands
+        ASReceive --> Programs
+
+        subgraph "Web Server (Guest view)"
+            HomePage --> Activity[Activity]
+            Activity --> Room[Room]
+            Room --> Messages[Messages]
+        end
+    end
+
+    subgraph "DJango Database"
+        direction TB
+        DB_User(DB_User)
+        DB_Commands(DB_Commands)
+        DB_Programs(DB_Programs)
+        DB_Messages(DB_Messages)
+        DB_Activities(DB_Activities)
+        DB_Rooms(DB_Rooms)
+
+        %% Connections from Database back to Web Server (Data Retrieval)
+        DB_Commands --> Commands
+        DB_Programs --> Programs
+        DB_Messages --> Room
+        DB_User --> AuthenticateUser
+
+        %% Messages interact with Room, which interacts with DB
+        ApiActivityMessage --> DB_Messages
+        ApiActivityCreate --> DB_Activities & DB_Rooms
+        %% User creation writes user data
+        CreateUser --> DB_User
+
+    end
+
+    ASSend --> ACReceive
+    ACSend --> ASReceive
+
+    subgraph "Client Application"
+        %% API output
+        ACSend(API Client)
+        ACSend --> DB_Commands
+        ACSend --> DB_Programs
+
+        %% API input (port 5000)
+        ACReceive(API:5000)
+        ACReceive --> CheckUser[Check user privileges]
+        CheckUser --> UserAllowed{Is user allowed?}
+        
+        UserAllowed --> |Yes| DynamicEndpoints[Dinamyc endpoints]
+        UserAllowed --> |Yes| Command[Command]
+        UserAllowed --> |Yes| Program[Program]
+
+        UserAllowed --> |No| ACReceive
+
+        %% Commands
+        Command --> CommandVerification[Verification]
+        CommandVerification --> RunCommand[Run command]
+        RunCommand --> ActionOnClient[Action on client]
+
+        %% Programs
+        Program --> ProgramVerification[Verification]
+        ProgramVerification --> StartProgram[Start program]
+        StartProgram --> ActionOnClient
+
+        %% Dynamic endpoints
+        DynamicEndpoints --> GetDataFromClient[Get data from client]
+        DynamicEndpoints --> ExecuteActionOnClient[Execute action on client]
+        ExecuteActionOnClient --> ActionOnClient
+    end
+
+    %% Styling the subgraph itself
+    style ASSend fill:#494,stroke:#666,stroke-width:2px
+    style ACSend fill:#494,stroke:#666,stroke-width:2px
+    style ASReceive fill:#494,stroke:#666,stroke-width:2px
+    style ACReceive fill:#494,stroke:#666,stroke-width:2px
+    style APIinput fill:#494,stroke:#666,stroke-width:2px
+    style StartUserAction fill:#494,stroke:#666,stroke-width:2px
+    style HomePage fill:#494,stroke:#666,stroke-width:2px
+    style AuthenticatedUserExit fill:#494,stroke:#666,stroke-width:2px
+    style GuestUserExit fill:#494,stroke:#666,stroke-width:2px

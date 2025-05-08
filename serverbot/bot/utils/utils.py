@@ -7,7 +7,13 @@ import requests
 from django.db import transaction
 from django.http import JsonResponse
 
-from ..models import Program
+from ..models import Program, Command
+import json
+import os
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 processes = {}
 processes_status = {}
@@ -145,8 +151,8 @@ def sync_programs_from_json(json_file_path):
                     db_program.description = json_program.get('description', 'None')
                     db_program.save()
                     messages.append(f"Program modified. Modifying... {db_program.name}")
-                #else:
-                    #messages.append(f"Program already exists. Skipping... {db_program.name}")
+                # else:
+                # messages.append(f"Program already exists. Skipping... {db_program.name}")
             except Program.DoesNotExist:
                 messages.append(f"Program not exist. Creating... {program_name}")
                 # If the program does not exist in the database, create it
@@ -160,7 +166,7 @@ def sync_programs_from_json(json_file_path):
 
         # Find and delete programs in the DB that are not in the JSON
         programs_to_delete = db_program_names - json_program_names
-        messages.append(f"Programs to delete: {programs_to_delete if programs_to_delete.__len__()>0 else 'None'}")
+        messages.append(f"Programs to delete: {programs_to_delete if programs_to_delete.__len__() > 0 else 'None'}")
         Program.objects.filter(name__in=programs_to_delete).delete()
     return messages
 
@@ -181,3 +187,68 @@ def send_json(endpoint, body):
 
     # Send the POST request with the JSON data
     response = requests.post(endpoint, headers=headers, json=payload)
+
+
+import os
+import logging # Import logging module for the optional logger
+
+def verify_and_create_directory(directory_path: str, logger=None) -> tuple[bool, str]:
+    """
+    Verifies if a given path is an absolute directory and creates it if it doesn't exist.
+
+    Args:
+        directory_path (str): The full path to the directory to check/create.
+        logger (logging.Logger, optional): A logger instance to use for logging messages.
+                                           If None, a basic logger will be used or messages
+                                           will be printed (depending on logger configuration).
+
+    Returns:
+        tuple[bool, str]: A tuple containing:
+                          - bool: True if the directory exists or was successfully created, False otherwise.
+                          - str: A message indicating the outcome (success or error details).
+    """
+    # Use the provided logger or a default one if none is provided
+    log = logger if logger else logging.getLogger(__name__)
+
+    # Check if the path is absolute
+    if not os.path.isabs(directory_path):
+        log.error(f"verify_and_create_directory ERROR: Path '{directory_path}' is not an absolute path.")
+        return False, f"Error: Path '{directory_path}' is not an absolute path."
+
+    # Check if the path exists and is a directory
+    if os.path.exists(directory_path):
+        if os.path.isdir(directory_path):
+            log.debug(f"verify_and_create_directory: Directory already exists at '{directory_path}'.")
+            return True, f"Directory already exists at '{directory_path}'."
+        else:
+            # Path exists but is not a directory (e.g., a file)
+            log.error(f"verify_and_create_directory ERROR: Path '{directory_path}' exists but is not a directory.")
+            return False, f"Error: Path '{directory_path}' exists but is not a directory."
+    else:
+        # Directory does not exist, attempt to create it
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+            log.debug(f"verify_and_create_directory: Created directory at '{directory_path}'.")
+            return True, f"Created directory at '{directory_path}'."
+        except Exception as e:
+            log.error(f"verify_and_create_directory ERROR: Exception creating directory '{directory_path}' - {e}")
+            return False, f"Error creating directory '{directory_path}': {e}"
+
+# --- Example Usage (based on your original code context) ---
+# Assuming 'self' has attributes like 'logging' and 'paths'
+# and settings.BASE_DIR is available
+
+# from django.conf import settings # Make sure settings is imported if used outside a Django view/model
+
+# # Construct the full path
+# downloads_folder_path = os.path.join(settings.BASE_DIR, 'bot', self["paths"]["path_downloads"])
+
+# # Call the function with the path and your logger
+# success, message = verify_and_create_directory(downloads_folder_path, logger=self.logging)
+
+# if success:
+#     print(f"Downloads folder check/creation successful: {message}")
+# else:
+#     print(f"Downloads folder check/creation failed: {message}")
+#     # Handle the error, e.g., return False from your calling function
+#     # return False, message

@@ -3,17 +3,19 @@ from functools import wraps
 from typing import Optional, Dict
 
 import psutil
-from ..config.config import LogLevel, logging
+from ..config.config import LogLevel
+import logging
 from flask import jsonify
 
 
 class APIResponse:
     """Base API Response class for standardizing API responses."""
 
-    def __init__(self, status: str, message: str, data: Optional[Dict] = None):
+    def __init__(self, status: str, message: str, code: int , data: Optional[Dict] = None):
         self.status = status
         self.message = message
         self.data = data
+        self.code = code
 
     def to_dict(self) -> dict:
         response = {"status": self.status, "message": self.message}
@@ -78,10 +80,10 @@ class LogResponse(SuccessResponse):
 class ErrorResponse(APIResponse):
     """Base class for all error responses."""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, code: int= 500):
         # Log error response with severity level
         logging.log(LogLevel.ERROR.value, f"ErrorResponse: {message}")
-        super().__init__("error", message)
+        super().__init__("error", message, code)
 
 
 class NotFoundResponse(ErrorResponse):
@@ -90,7 +92,7 @@ class NotFoundResponse(ErrorResponse):
     def __init__(self, resource: str):
         # Log missing resource
         logging.log(LogLevel.WARNING.value, f"NotFoundResponse: {resource} not found.")
-        super().__init__(f"{resource} not found")
+        super().__init__(f"{resource} not found", 404)
 
 
 class ValidationErrorResponse(ErrorResponse):
@@ -99,7 +101,7 @@ class ValidationErrorResponse(ErrorResponse):
     def __init__(self, field: str):
         # Log missing or invalid field
         logging.log(LogLevel.WARNING.value, f"ValidationErrorResponse: Missing or invalid field: {field}")
-        super().__init__(f"Missing or invalid field: {field}")
+        super().__init__(f"Missing or invalid field: {field}", 400)
 
 
 class InternalErrorResponse(ErrorResponse):
@@ -108,7 +110,36 @@ class InternalErrorResponse(ErrorResponse):
     def __init__(self, error: str):
         # Log internal server error
         logging.log(LogLevel.ERROR.value, f"InternalErrorResponse: {error}")
-        super().__init__(f"Internal server error: {error}")
+        super().__init__(f"Internal server error: {error}", 500)
+
+
+class BadRequestResponse(ErrorResponse):
+    """Response class for bad request errors."""
+
+    def __init__(self, message: str):
+        # Log bad request error
+        logging.log(LogLevel.WARNING.value, f"BadRequestResponse: {message}")
+        super().__init__(f"Bad request: {message}", 400)
+
+
+class UnauthorizedResponse(ErrorResponse):
+    """Response class for unauthorized access errors."""
+
+    def __init__(self, message: str):
+        # Log unauthorized access error
+        logging.log(LogLevel.WARNING.value, f"UnauthorizedResponse: {message}")
+        super().__init__(f"Unauthorized access: {message}", 401)
+
+
+class ForbiddenErrorResponse(ErrorResponse):
+    """Response class for forbidden access errors (authentication succeeded, but user lacks permissions)."""
+
+    def __init__(self, message: str = "Forbidden.", data=None):
+        # Log forbidden access error
+        logging.log(LogLevel.WARNING.value, f"ForbiddenErrorResponse: {message}")
+        # Standard HTTP status code for Forbidden is 403
+        super().__init__(message, data) # Pass message and data to base ErrorResponse
+        self.code = 403 # Set the specific HTTP status code
 
 
 class BadMethodErrorResponse(ErrorResponse):
@@ -117,7 +148,7 @@ class BadMethodErrorResponse(ErrorResponse):
     def __init__(self, method: str, expected_method: str):
         # Log unsupported HTTP method
         logging.log(LogLevel.WARNING.value, f"BadMethodErrorResponse: Unsupported method: {method}")
-        super().__init__(f"Unsupported method: {method}. Expected method: {expected_method}")
+        super().__init__(f"Unsupported method: {method}. Expected method: {expected_method}", 405)
 
 
 # IMPROVEMENT: Added error handling decorator

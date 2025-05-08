@@ -1,0 +1,8 @@
+{
+  "hello_world": {
+    "name": "Hello World",
+    "description": "Sends a simple hello world message from the server.",
+    "args": [],
+    "handler": "hello_world"
+  }
+}

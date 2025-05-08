@@ -1,6 +1,7 @@
 {% load static %}
 <h3>
-  <h3>5
+  <h3>
+    5
     <button type="button" id="update-button" onclick="" alt="Refresh">
       <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
         <path
@@ -11,18 +12,19 @@
           stroke-linejoin="round"
         />
       </svg>
-      <span class="visually-hidden">Refresh</span></button
-    > Commands
+      <span class="visually-hidden">Refresh</span>
+    </button>
+    Commands
   </h3>
   <small>(last update: {{now_date|default:"None"}})</small>
 </h3>
 <div class="vertical-container">
-  {% for program in programs %}
+  {% for command in commands %}
   <div class="card">
-    <a href="#" class="card-link" onclick="fetchProgramDetails({{ program.id }}); return false;">
-      <h3 class="card-title">{{program.name}}</h3>
+    <a id="command-{{ forloop.counter0 }}" class="card-link" onclick="fetchProgramDetails({{ command.id }}); return false;">
+      <h3 class="card-title">{{command.name}}</h3>
     </a>
-    <em>{{program.description}}</em>
+    <em>{{command.description}}</em>
   </div>
   {% endfor %}
 </div>
@@ -30,28 +32,96 @@
   // This function runs once the document (web page) is fully loaded
   document.addEventListener("DOMContentLoaded", function () {
     // Automatically load the component when the page is loaded
-    //loadProgramComponent();
+    // loadProgramComponent(); // Uncomment if you have this function and need it to run on load
+    /**
+     * Attaches a click event listener to a button element by its ID.
+     * When the button is clicked, it calls the executeFunction with the provided function name.
+     *
+     * @param {string} buttonId - The ID of the button element.
+     * @param {string} functionName - The name of the server-side function to execute.
+     */
+    function loadCommand(buttonId, functionName) {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.addEventListener("click", function () {
+          console.log(`DEBUG: Button with ID '${buttonId}' clicked. Executing function '${functionName}'.`);
+          executeFunction(functionName);
+        });
+      } else {
+        console.warn(`Button with ID '${buttonId}' not found. Cannot attach command listener.`);
+      }
+    }
 
-    $("#update-button").click(updatePrograms);
-    $("#test-button").click(testPrograms);
-  });
+    // Attach click event listener to the update button
+    // When clicked, it will call executeFunction with the server-side function ID for updating programs
+    const updateButton = document.getElementById("update-button");
+    if (updateButton) {
+      updateButton.addEventListener("click", function () {
+        // TODO: Confirm the correct function ID for updating programs on the server
+        executeFunction("update_programs");
+      });
+    } else {
+      console.warn("Update button with ID 'update-button' not found.");
+    }
 
-  function getProgramsStatus() {
-    fetch(`{% url 'refresh_processes_status' %}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken"),
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        $("#programs_console").html("");
-        // Replace the content of the element with id 'component_programs' with the new HTML
-        $("#programs_console").text(data);
+    // Attach click event listener to the test button
+    // When clicked, it will call executeFunction with the server-side function ID for testing programs
+    const testButton = document.getElementById("test-button");
+    if (testButton) {
+      testButton.addEventListener("click", function () {
+        // TODO: Confirm the correct function ID for testing programs on the server
+        executeFunction("test_programs");
+      });
+    } else {
+      console.warn("Test button with ID 'test-button' not found.");
+    }
+
+    // This function still uses fetch as per your original code.
+    // If you prefer to use sendAjaxPostRequest for this, it would need adaptation
+    // as sendAjaxPostRequest is designed for JSON responses with a 'status' or 'success' field.
+    function getProgramsStatus() {
+      fetch(`{% url 'refresh_processes_status' %}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"), // Assumes getCookie is accessible
+        },
       })
-      .catch((error) => {});
-  }
+        .then((response) => {
+          if (!response.ok) {
+            console.error("HTTP error fetching program status:", response.status);
+            // Optionally parse response body for more details if server sends JSON errors
+            return response.json().catch(() => {
+              throw new Error(response.statusText);
+            }); // Try to parse JSON, fallback to status text
+          }
+          return response.json();
+        })
+        .then((data) => {
+          const programsConsole = document.getElementById("programs_console"); // Use getElementById
+          if (programsConsole) {
+            // Assuming data is the direct text/JSON to display, adjust if data has a specific structure
+            programsConsole.textContent = JSON.stringify(data, null, 2); // Display JSON nicely
+            // Or if data.message or data.status is expected:
+            // programsConsole.textContent = data.message || data.status || JSON.stringify(data);
+          } else {
+            console.warn("Element with ID 'programs_console' not found.");
+            console.log("Program Status Data:", data); // Log to browser console as fallback
+          }
+        })
+        .catch((error) => {
+          console.error("Error getting program status:", error);
+          const programsConsole = document.getElementById("programs_console");
+          if (programsConsole) {
+            programsConsole.textContent = `Error fetching status: ${error}`;
+          } else {
+            console.error("Error fetching status and console element not found.");
+          }
+        });
+    }
+
+    // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
+  });
 </script>
 <script src="{% static 'js/component_program.js' %}"></script>
 <script src="{% static 'js/button_call_api.js' %}"></script>

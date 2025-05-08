@@ -1,3 +1,5 @@
+import os
+from django.conf import settings
 from enum import Enum
 
 from . import init_config
@@ -15,11 +17,13 @@ class LogLevel(Enum):
 
 
 configuration = init_config.Configuration()  # Init for Configuration
-logging = configuration.logging  # Make the logger global by creating a static variable
 
 # Logging configuration
 login_tokens = {}  # Store valid tokens
 
 # Other
 CONFIG_PATH = 'config/programs.json'
+# Assuming commands.json is in a 'config' directory at the project root
+COMMANDS_JSON_PATH = os.path.join(settings.BASE_DIR, 'config', 'commands.json')
 VALID_TOKENS = []
+SERVER_INITIALIZATION = True  # This variable is used to check if the server is loading. There is a function it needs to run once the server is loaded, and it needs to be run only once.

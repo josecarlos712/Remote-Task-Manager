@@ -1,9 +1,48 @@
-{% extends 'main.html' %} {% block baseblock %}
-<main>
-    <h1>Error trying to start the .exe program</h1>
-    <div class="message {% if error %}error{% else %}success{% endif %}">
-        {{ message }}<br> Path: {{ path }}
-    </div>
-    <a href="{% url 'home' %}">Go to Home</a>
-</main>
+{% extends 'main.html' %} {% load static %} {% block title %}Error - Something Went Wrong{% endblock %} {% block baseblock %}
+<style>
+  .error-container {
+    background-color: #2d2d2d; /* Slightly lighter dark background for container */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* More prominent shadow for dark mode */
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    margin: 20px auto; /* Add some margin and center the container */
+  }
+  .error-container h1 {
+    color: #dc3545; /* Keep title red (Bootstrap's danger color) */
+    margin-bottom: 20px;
+  }
+  .error-container p {
+    font-size: 1.1em;
+    margin-bottom: 20px;
+    color: #cccccc; /* Slightly darker text for paragraphs */
+  }
+  .error-container .error-message {
+    font-weight: bold;
+    color: #f8d7da; /* Lighter red/pink for error details */
+  }
+  .error-container a {
+    color: #00aaff; /* Brighter blue for links in dark mode */
+    text-decoration: none;
+  }
+  .error-container a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<div class="vertical-container">
+  <div class="error-container">
+    <h1>An Error Occurred</h1>
+    <p>We're sorry, but something went wrong.</p>
+
+    {% if error %}
+    <p class="error-message">Details: {{ error }}</p>
+    {% else %}
+    <p>No specific error message was provided.</p>
+    {% endif %}
+
+    <p><a href="/">Go to Home Page</a></p>
+  </div>
+</div>
 {% endblock %}
