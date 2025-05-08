@@ -1,4 +1,4 @@
-# **Remote-Task-Manager v0.3.0**
+# **Remote-Task-Manager v0.4.1**
 
 Remote Task Manager v0.1.0. Basic web interface
 Remote Task Manager v0.2.0. Adding different capabilities to the server.

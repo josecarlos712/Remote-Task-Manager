@@ -17,3 +17,6 @@ logs/
 *.log.*
 *.log
 .env
+
+# Backup files
+.bak
