@@ -23,17 +23,17 @@ class UserSettings(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        primary_key=True, # Makes the user_id the primary key for this table
-        related_name='settings', # Allows accessing settings from the User object: user.settings
+        primary_key=True,  # Makes the user_id the primary key for this table
+        related_name='settings',  # Allows accessing settings from the User object: user.settings
         help_text="The user associated with these settings."
     )
 
     # JSONField to store client API keys as a dictionary mapping client IP to API key.
     # The default=dict callable ensures a new dictionary is created for each new settings object.
     client_api_keys = models.JSONField(
-        default=dict, # Use the callable 'dict' for a mutable default (empty dictionary)
-        blank=True,   # Allow the field to be blank in forms
-        null=True,    # Allow the field to be null in the database (though default=dict makes this less likely needed)
+        default=dict,  # Use the callable 'dict' for a mutable default (empty dictionary)
+        blank=True,  # Allow the field to be blank in forms
+        null=True,  # Allow the field to be null in the database (though default=dict makes this less likely needed)
         help_text="A dictionary mapping client IPs to their API keys for this user."
     )
 
@@ -56,15 +56,15 @@ class UserSettings(models.Model):
     def set_client_api_key(self, client_ip, api_key):
         """Sets or updates the API key for a specific client IP in the settings."""
         if self.client_api_keys is None:
-            self.client_api_keys = {} # Ensure it's a dictionary if it was null
+            self.client_api_keys = {}  # Ensure it's a dictionary if it was null
         self.client_api_keys[client_ip] = api_key
-        self.save() # Remember to save the settings object after modifying the JSONField
+        self.save()  # Remember to save the settings object after modifying the JSONField
 
     def remove_client_api_key(self, client_ip):
         """Removes the API key for a specific client IP from the settings."""
         if self.client_api_keys is not None and client_ip in self.client_api_keys:
             del self.client_api_keys[client_ip]
-            self.save() # Remember to save the settings object
+            self.save()  # Remember to save the settings object
 
 
 class Client(models.Model):
@@ -84,6 +84,15 @@ class Client(models.Model):
         null=True,  # Allow the field to be null in the database
         blank=True,  # Allow the field to be blank in forms
         help_text="The primary user associated with this client."
+    )
+
+    # Added a field for the client's name (e.g., computer name)
+    # This will need to be populated by the client application sending its name to the server.
+    name = models.CharField(
+        max_length=255,  # Choose an appropriate max length for computer names
+        null=True,  # Allow the field to be null
+        blank=True,  # Allow the field to be blank in forms
+        help_text="The name of the client machine (e.g., computer name)."
     )
 
     # A ManyToManyField to link this client to multiple allowed users.
@@ -176,6 +185,60 @@ class Program(models.Model):
         return f"Program: {self.title} ({self.name})"
 
 
+class Room(models.Model):  # One room can have multiple messages
+    host = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    program = models.ForeignKey(
+        Program, on_delete=models.CASCADE, null=True)
+    name = models.CharField(max_length=200)
+    # It can be blank because null=True
+    description = models.TextField(null=True, blank=True)
+    # this creates a many-to-many relationship in the database
+    participants = models.ManyToManyField(
+        User, related_name='participants', blank=True)
+    # It refreshes with the system time
+    updated = models.DateTimeField(auto_now=True)
+    # It refreshes the time only when its created
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # '-updated' for inverse ordering, and 'updated' for normal ordering
+        ordering = ['-updated', '-created']
+
+    def __str__(self):
+        """
+        Returns a string representation of the Room object.
+        """
+        host_str = self.host.username if self.host else "No Host"
+        program_str = self.program.title if self.program else "No Program"
+        return f"Room: {self.name} (Host: {host_str}, Program: {program_str})"
+
+
+class Message(models.Model):  # One message can have only one room and user
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    # CASCADE deletes all messages if the room is deleted
+    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    body = models.TextField()
+    # It refreshes with the system time
+    updated = models.DateTimeField(auto_now=True)
+    # It refreshes the time only when its created
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # '-updated' for inverse ordering, and 'updated' for normal ordering
+        ordering = ['-updated', '-created']
+
+    def __str__(self):
+        """
+        Returns a string representation of the Message object.
+        """
+        user_str = self.user.username if self.user else "Unknown User"
+        # Truncate message body for a concise representation
+        body_snippet = self.body[:50] + '...' if len(self.body) > 50 else self.body
+        # Include room name if available
+        room_name = self.room.name if self.room else "Unknown Room"
+        return f"Message by {user_str} in '{room_name}': \"{body_snippet}\""
+
+
 class Command(models.Model):
     # ForeignKey to the Client model.
     # on_delete=models.CASCADE means if a Client is deleted, all its Commands are also deleted.
@@ -256,20 +319,6 @@ class Command(models.Model):
             }
         }
 
-    # You might also want a method to get the details *without* the command_id as the key
-    def get_details_dict(self):
-        """
-        Returns a dictionary of command details without the command_id as the key.
-        Useful when listing commands.
-        """
-        return {
-            "command_id": self.command_id,
-            "name": self.name,
-            "description": self.description,
-            "args": self.args if self.args is not None else [],
-            "handler": self.handler
-        }
-
     def check_args(self, args):
         """
         Validates the provided arguments against the expected argument types.
@@ -293,134 +342,3 @@ class Command(models.Model):
                 error_message = f"{self.command_id} expected the positional arguments ({expected_args_types}) but got ({args}) instead."
                 logger.error(error_message)
                 raise TypeError(error_message)
-
-    # Execute the command handler with the provided arguments
-    def __call__(self, *args, **kwargs):
-        """
-        Makes the Command instance callable.
-        Dynamically imports the module specified by the 'handler' field
-        and executes the function (assumed to be named 'handler') within it.
-
-        Args:
-            *args: Positional arguments to pass to the command handler function.
-            **kwargs: Keyword arguments to pass to the command handler function.
-
-        Returns:
-            dict: The result returned by the command handler function.
-                  Should ideally include 'status' or 'success' and 'message'.
-
-        Raises:
-            ImportError: If the module specified in 'handler' cannot be imported.
-            AttributeError: If the 'handler' function is not found within the imported module.
-            TypeError: If the handler function is called with incorrect arguments.
-            Exception: If an error occurs during the execution of the command handler.
-        """
-        if not self.handler:
-            logger.error(f"Command '{self.command_id}' has no handler defined.")
-            # Return an error response if no handler is specified
-            return {'status': 'error', 'message': f"No handler defined for command '{self.command_id}'."}
-
-        # Split the handler path into module path and function name
-        try:
-            # Assuming handler is in the format 'module.submodule.function_name'
-            module_path, function_name = self.handler.rsplit('.', 1)
-        except ValueError:
-            logger.error(
-                f"Invalid handler format for command '{self.command_id}': '{self.handler}'. Expected 'module.function_name'.")
-            return {'status': 'error', 'message': f"Invalid handler format for command '{self.command_id}'."}
-
-        # Dynamically import the module
-        logger.debug(f"Attempting to import module: {module_path}")
-        try:
-            module = importlib.import_module(module_path)
-            logger.debug(f"Successfully imported module: {module_path}")
-        except ImportError as e:
-            logger.error(f"Could not import module '{module_path}' for command '{self.command_id}': {e}", exc_info=True)
-            # Re-raise the exception or return an error response
-            # Raising might be better for critical import failures during execution
-            # raise ImportError(f"Could not import module '{module_path}'") from e
-            return {'status': 'error', 'message': f"Could not find command module: {module_path}"}
-
-        # Get the function from the module
-        logger.debug(f"Attempting to get function '{function_name}' from module '{module_path}'")
-        try:
-            handler_function = getattr(module, function_name)
-            logger.debug(f"Successfully got function '{function_name}'")
-        except AttributeError as e:
-            logger.error(
-                f"Could not find function '{function_name}' in module '{module_path}' for command '{self.command_id}': {e}",
-                exc_info=True)
-            # Re-raise or return error response
-            # raise AttributeError(f"Could not find function '{function_name}' in module '{module_path}'") from e
-            return {'status': 'error', 'message': f"Could not find handler function: {function_name}"}
-
-        # Check args
-        self.check_args(args)
-
-        # Execute the handler function, passing any arguments
-        logger.debug(f"Executing handler function '{function_name}' with args: {args}, kwargs: {kwargs}")
-        try:
-            # The handler blueprint expects *args and **kwargs
-            result = handler_function(*args, **kwargs)
-            logger.debug(f"Handler function '{function_name}' executed. Result: {result}")
-            return result  # Return the result from the handler
-        except Exception as e:
-            logger.error(f"Error executing handler function '{function_name}' for command '{self.command_id}': {e}",
-                         exc_info=True)
-            # Catch any exceptions during execution and return an error response
-            # TODO: Decide if you want to expose the raw exception message or a generic error
-            return {'status': 'error', 'message': f"Error during command execution: {str(e)}"}
-
-
-class Room(models.Model):  # One room can have multiple messages
-    host = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    program = models.ForeignKey(
-        Program, on_delete=models.CASCADE, null=True)
-    name = models.CharField(max_length=200)
-    # It can be blank because null=True
-    description = models.TextField(null=True, blank=True)
-    # this creates a many-to-many relationship in the database
-    participants = models.ManyToManyField(
-        User, related_name='participants', blank=True)
-    # It refreshes with the system time
-    updated = models.DateTimeField(auto_now=True)
-    # It refreshes the time only when its created
-    created = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        # '-updated' for inverse ordering, and 'updated' for normal ordering
-        ordering = ['-updated', '-created']
-
-    def __str__(self):
-        """
-        Returns a string representation of the Room object.
-        """
-        host_str = self.host.username if self.host else "No Host"
-        program_str = self.program.title if self.program else "No Program"
-        return f"Room: {self.name} (Host: {host_str}, Program: {program_str})"
-
-
-class Message(models.Model):  # One message can have only one room and user
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # CASCADE deletes all messages if the room is deleted
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
-    body = models.TextField()
-    # It refreshes with the system time
-    updated = models.DateTimeField(auto_now=True)
-    # It refreshes the time only when its created
-    created = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        # '-updated' for inverse ordering, and 'updated' for normal ordering
-        ordering = ['-updated', '-created']
-
-    def __str__(self):
-        """
-        Returns a string representation of the Message object.
-        """
-        user_str = self.user.username if self.user else "Unknown User"
-        # Truncate message body for a concise representation
-        body_snippet = self.body[:50] + '...' if len(self.body) > 50 else self.body
-        # Include room name if available
-        room_name = self.room.name if self.room else "Unknown Room"
-        return f"Message by {user_str} in '{room_name}': \"{body_snippet}\""

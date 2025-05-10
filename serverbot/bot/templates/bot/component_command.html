@@ -21,7 +21,7 @@
 <div class="vertical-container">
   {% for command in commands %}
   <div class="card">
-    <a id="command-{{ forloop.counter0 }}" class="card-link" onclick="fetchProgramDetails({{ command.id }}); return false;">
+    <a id="command-{{ forloop.counter0 }}" class="card-link" onclick="sendAjaxPostRequestJson({{}})">
       <h3 class="card-title">{{command.name}}</h3>
     </a>
     <em>{{command.description}}</em>
@@ -118,8 +118,34 @@
             console.error("Error fetching status and console element not found.");
           }
         });
-    }
 
+      /**
+       * Sends a request to the Django API to execute a command on a specific client.
+       *
+       * @param {string | number} clientId The ID (primary key) of the Client model instance.
+       * @param {string} commandId The unique command_id of the command on the client application.
+       * @param {Array<any>} [args=[]] Optional list of positional arguments for the command.
+       * @param {object} [kwargs={}] Optional dictionary of keyword arguments for the command.
+       */
+      function executeCommand(clientId, commandId, args = [], kwargs = {}) {
+        // TODO: Ensure the URL pattern for the command execution API is correct in your Django urls.py
+        const url = "/api/commands/execute/"; // The API endpoint URL
+
+        // Construct the JSON payload to send to the Django server
+        const jsonData = {
+          client_id: clientId,
+          command_id: commandId,
+          args: args, // Include positional arguments
+          kwargs: kwargs, // Include keyword arguments
+        };
+
+        console.log(`DEBUG: Preparing to send command execution request for command '${commandId}' on client ID '${clientId}'.`);
+        console.log("DEBUG: Payload:", jsonData);
+
+        // Use the sendAjaxPostRequestJson function to send the request
+        // It returns a Promise that resolves with [successStatus, responseData]
+        sendAjaxPostRequestJson(url, jsonData);
+      }
     // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
   });
 </script>

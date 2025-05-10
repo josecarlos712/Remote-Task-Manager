@@ -31,8 +31,12 @@
     <!-- This block is for specific scripts needed by child templates -->
     {% endblock %}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
     {% block extra_head %}
     <!-- Child templates can insert additional head content here -->
+    {% endblock %}
+    {% block scripts %}
+    <!-- This block is for specific scripts needed by child templates -->
     {% endblock %}
   </head>
   <body>

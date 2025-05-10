@@ -1,113 +1,133 @@
+<style>
+  /* Container for the entire commands section */
+  #commands-container {
+    margin-top: 20px; /* Add some space above the section */
+    padding: 15px; /* Add padding inside the container */
+    border: 1px solid var(--color-foregroud); /* Subtle border using variable */
+    border-radius: 8px; /* Rounded corners */
+    background-color: var(--color-background-container); /* Light background using variable */
+    color: var(--color-text-body); /* Default text color for container */
+  }
+
+  /* Styling for the main heading */
+  #commands-container h3 {
+    color: var(--color-text); /* Heading text color using variable */
+    border-bottom: 2px solid var(--color-foregroud); /* Add a separator line using variable */
+    padding-bottom: 10px; /* Space below the heading */
+    margin-top: 0; /* Remove default top margin */
+    margin-bottom: 15px; /* Space below the separator */
+  }
+
+  /* Grid container for the command cards */
+  #commands-grid {
+    display: grid; /* Use CSS Grid for layout */
+    /* Define columns: auto-fit creates as many columns as fit,
+       minmax sets minimum width of 150px and maximum of 1fr (fraction of available space) */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px; /* Space between grid items (command cards) */
+  }
+
+  /* Styling for each individual command card */
+  #commands-grid .card {
+    border: 1px solid var(--color-foregroud); /* Border for the card using variable */
+    border-radius: 8px; /* Rounded corners */
+    padding: 15px; /* Padding inside the card */
+    background-color: var(--color-background); /* White background for the card using variable */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* Subtle shadow (kept black for standard shadow) */
+    transition: transform 0.2s ease-in-out; /* Smooth hover effect */
+    display: flex; /* Use flexbox for content within the card */
+    flex-direction: column; /* Stack content vertically */
+    cursor: pointer; /* Indicate that the card is clickable */
+    color: var(--color-text-body); /* Default text color for card content */
+  }
+
+  /* Hover effect for the cards (optional, can be combined with card-link hover) */
+  #commands-grid .card:hover {
+    transform: translateY(-3px); /* Lift the card slightly on hover */
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4); /* Enhance shadow on hover */
+  }
+
+  /* Styling for the clickable link area within the card */
+  #commands-grid .card-link {
+    text-decoration: none; /* Remove underline from the link */
+    color: inherit; /* Inherit text color from parent (the card) */
+    display: block; /* Make the entire card area clickable */
+    margin-bottom: 5px; /* Space below the title link */
+    /* Add transition for properties changed on hover */
+    transition: color 0.2s ease-in-out;
+  }
+
+  /* Hover effect for the clickable link area */
+  #commands-grid .card-link:hover {
+    color: var(--color-foregroud); /* Change text color on hover (example: light gray) */
+    /* text-decoration: underline; /* Optional: Add underline on hover */
+  }
+
+  /* Styling for the command title */
+  #commands-grid .card-title {
+    margin-top: 0; /* Remove default top margin */
+    margin-bottom: 0; /* Remove default bottom margin */
+    font-size: 1.1em; /* Slightly larger font size for the title */
+    color: var(--color-text); /* Title color using variable */
+    font-weight: bold; /* Make title bold */
+  }
+
+  /* Styling for the command description (using <em> tag) */
+  #commands-grid .card em {
+    display: block; /* Make the description take its own line */
+    font-size: 0.9em; /* Smaller font size */
+    color: var(--color-text-body); /* Description color using variable */
+    font-style: normal; /* Remove default italic style if desired */
+    flex-grow: 1; /* Allow description to take up available space */
+  }
+
+  /* Optional: Basic responsiveness for smaller screens */
+  @media (max-width: 600px) {
+    #commands-grid {
+      grid-template-columns: 1fr; /* On small screens, stack cards in a single column */
+    }
+  }
+</style>
 <div id="commands-container">
   <h3>Available Commands</h3>
   <div id="commands-grid">
-    <button class="command-button" data-command="start">
-      <span class="command-title">start</span>
-      <span class="command-description">Permite iniciar programas en la computadora desde una lista predefinida (/start list).</span>
-    </button>
-    <button class="command-button" data-command="popup">
-      <span class="command-title">popup</span>
-      <span class="command-description">Shows a popup.</span>
-    </button>
-    <button class="command-button" data-command="dice">
-      <span class="command-title">dice</span>
-      <span class="command-description">Lanza un dado y devuelve el resultado.</span>
-    </button>
-    <button class="command-button" data-command="shutdown">
-      <span class="command-title">shutdown</span>
-      <span class="command-description">Apaga la computadora del usuario.</span>
-    </button>
-    <button class="command-button" data-command="download">
-      <span class="command-title">download</span>
-      <span class="command-description">Descarga los archivos correspondientes a las URLs proporcionadas.</span>
-    </button>
-    <button class="command-button" data-command="send_screenshot">
-      <span class="command-title">send_screenshot</span>
-      <span class="command-description">Hace una captura de las pantallas y las envía.</span>
-    </button>
+    {% for command in commands %} {# The entire card div is now wrapped by the clickable link #}
+    <a id="command-link-{{ command.command_id }}" class="card-link" onclick="executeCommand('josec', '{{ command.command_id }}');">
+      {# The card class is applied to the link itself #}
+      <div class="card">
+        {# Use the command's name as the link text #}
+        <h3 class="card-title">{{ command.name }}</h3>
+        {# Display the command's name #} {# Display the command's description #} <em>{{ command.description }}</em> {# You might also want to display the client name/IP/Port here for clarity #} {# <small>On Client: {{ command.client }}</small> #}
+      </div>
+    </a>
+    {% endfor %}
   </div>
 </div>
-<style>
-  #commands-container {
-    margin-bottom: 10px;
-    padding: 20px;
-    background-color: #1e1e1e;
-    border-radius: 8px;
-    color: #cccccc;
-    border: 1px solid #505052;
-  }
-
-  #commands-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .command-button {
-    background-color: #353535;
-    color: #cccccc;
-    border: 1px solid #505052;
-    border-radius: 4px;
-    padding: 15px;
-    cursor: pointer;
-    text-align: left;
-    flex: 1 1 calc(45%);
-    max-width: 300px;
-  }
-
-  .command-title {
-    display: block;
-    font-size: 18px;
-    font-weight: bold;
-    color: #cccccc;
-    margin-bottom: 8px;
-  }
-
-  .command-description {
-    font-size: 14px;
-    color: #cccccc;
-  }
-
-  .command-button:hover {
-    background-color: #505052;
-    color: #1e1e1e;
-  }
-
-  .command-title:hover,
-  .command-description:hover {
-    color: #1e1e1e;
-  }
-</style>
 <script>
-  document.querySelectorAll(".command-button").forEach((button) => {
-    button.addEventListener("click", () => {
-      const command = button.getAttribute("data-command");
+  /**
+   * Sends a request to the Django API to execute a command on a specific client.
+   *
+   * @param {string | number} clientId The ID (primary key) of the Client model instance.
+   * @param {string} commandId The unique command_id of the command on the client application.
+   * @param {Array<any>} [args=[]] Optional list of positional arguments for the command.
+   * @param {object} [kwargs={}] Optional dictionary of keyword arguments for the command.
+   */
+  function executeCommand(clientId, commandId, args = [], kwargs = {}) {
+    // TODO: Ensure the URL pattern for the command execution API is correct in your Django urls.py
+    const url = "{% url 'execute_command' %}"; // The API endpoint URL
 
-      fetch("http://192.168.0.3:8000/api/command", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken"), // If CSRF token is required
-        },
-        body: JSON.stringify({ command: command, message: 'Hola mundo'}),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Network response was not ok " + response.statusText);
-          }
-          return response.json();
-        })
-        .then((data) => {
-          console.log("Command executed:", data.message);
-          // Append the result to the console if needed
-          const consoleElement = document.getElementById("console_output");
-          if (consoleElement) {
-            consoleElement.textContent += `\n${data.message}`;
-          }
-        })
-        .catch((error) => {
-          console.error("There was an error!", error);
-        });
-    });
-  });
+    // Construct the JSON payload to send to the Django server
+    const jsonData = {
+      client_id: clientId,
+      command_id: commandId,
+      args: args, // Include positional arguments
+      kwargs: kwargs, // Include keyword arguments
+    };
+
+    console.log(`DEBUG: Preparing to send command execution request for command '${commandId}' on client ID '${clientId}'.`);
+    console.log("DEBUG: Payload:", jsonData);
+
+    // Send the request to the API
+    sendAjaxPostRequestJson(url, jsonData);
+  }
 </script>

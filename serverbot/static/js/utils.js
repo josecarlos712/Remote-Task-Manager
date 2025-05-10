@@ -28,8 +28,8 @@ function formatTimeSpanish(timeString) {
 /**
  * Sends an AJAX POST request to a specified URL with JSON data.
  *
- * @param {string} url - The API endpoint URL.
- * @param {object} jsonData - The data to send in the request body as a JSON object.
+ * @param {string} api_url - The API endpoint URL.
+ * @param {object} content - The data to send in the request body as a JSON object.
  * @returns {Promise<[boolean, object | string]>} A Promise that resolves with a tuple:
  * - [true, data]: If the request is successful (HTTP 2xx) and the API status is 'success'.
  * 'data' is the parsed JSON response body.
@@ -40,117 +40,104 @@ function formatTimeSpanish(timeString) {
  * - [false, string]: If a network error occurs or JSON parsing fails.
  * The string is an error message.
  */
-
-function sendAjaxPostRequest(url, jsonData) {
+function sendAjaxPostRequestJson(api_url, content) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-
+    url = "http://192.168.0.3:8000" + api_url; // Construct the full URL for the API endpoint
     xhr.open("POST", url, true); // Method, URL, Asynchronous (true)
 
-    // Set request headers
-    xhr.setRequestHeader("Content-Type", "application/json");
     // Retrieve and set the CSRF token header
-    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+    // Assumes getCookie is defined and accessible
+    const csrfToken = getCookie("csrftoken"); // TODO: Ensure getCookie function is available globally or imported
+    if (csrfToken) {
+      xhr.setRequestHeader("X-CSRFToken", csrfToken);
+    } else {
+      console.warn(`CSRF token not found for ${url}. Request might fail.`);
+      // For most POST requests in Django, CSRF token is required.
+      // Rejecting is appropriate if the token is essential.
+      reject("CSRF token not found.");
+      return; // Stop the function if token is missing
+    }
+
+    let requestBody = null; // Variable to hold the body to be sent
+
+    // Check if content is provided and should be sent as JSON
+    if (content !== null && typeof content === "object") {
+      try {
+        // Set the Content-Type header for JSON requests
+        xhr.setRequestHeader("Content-Type", "application/json");
+        // Stringify the dictionary content to JSON string
+        requestBody = JSON.stringify(content);
+        console.log(`DEBUG: Sending JSON body for ${url}: ${requestBody}`);
+      } catch (e) {
+        console.error(`Error stringifying JSON content for ${url}:`, e);
+        reject(`Error preparing JSON content: ${e.message}`);
+        return; // Stop the function if JSON stringification fails
+      }
+    } else if (content === null) {
+      console.log(`DEBUG: Sending POST request to ${url} with no body.`);
+      // No body needed, no Content-Type header for JSON is necessary.
+      // If your server requires a specific Content-Type for empty POST, set it here.
+      // xhr.setRequestHeader("Content-Type", "text/plain"); // Example for empty body
+    } else {
+      console.warn(`DEBUG: Invalid content type provided for ${url}. Expected object or null, but got ${typeof content}. Sending without body.`);
+      // Handle cases where content is provided but not an object/null
+      // Forcing no body or attempting to send as text might depend on requirements.
+      // Sending without body is safer if expecting JSON.
+    }
 
     // Define the function to handle the response
     xhr.onload = function () {
       console.log(`DEBUG: AJAX POST status for ${url}: ${xhr.status}`);
 
-      try {
-        console.log(`DEBUG: AJAX POST response for ${url}: ${xhr.responseText}`);
-        const responseData = JSON.parse(xhr.responseText);
-
-        // Determine success based on HTTP status AND API response structure
-        let apiSuccess = false;
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // HTTP success status
-          if (responseData.status === "success" || responseData.success === true) {
-            apiSuccess = true;
-          }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // HTTP success status (2xx)
+        let responseData = xhr.responseText;
+        try {
+          // Attempt to parse the response text as JSON
+          responseData = JSON.parse(xhr.responseText);
+          console.log(`DEBUG: Successfully parsed JSON response for ${url}:`, responseData);
+        } catch (e) {
+          console.warn(`Could not parse JSON response for ${url}:`, e);
+          // If JSON parsing fails, return the raw text response
+          // Depending on your API, receiving non-JSON on 2xx might be an error.
+          // Decide if you should resolve with raw text or reject here.
+          // Resolving with raw text allows the caller to handle non-JSON success.
         }
-
-        if (apiSuccess) {
-          // API reported success
-          resolve([true, responseData]); // Resolve with success status and data
-        } else {
-          // API reported an error or HTTP error occurred
-          console.error(`API Error or HTTP Error for ${url}:`, responseData);
-          resolve([false, responseData]); // Resolve with failure status and the error response data
+        resolve([true, responseData]); // Resolve with success status and the parsed/raw response data
+      } else {
+        // HTTP error status (4xx, 5xx)
+        console.error(`HTTP Error for ${url}: ${xhr.status} ${xhr.statusText}`);
+        let errorResponse = xhr.responseText;
+        try {
+          // Attempt to parse error response as JSON (APIs often return JSON errors)
+          errorResponse = JSON.parse(xhr.responseText);
+          console.log(`DEBUG: Successfully parsed JSON error response for ${url}:`, errorResponse);
+        } catch (e) {
+          console.warn(`Could not parse JSON error response for ${url}:`, e);
+          // If JSON parsing fails, return the raw text response
         }
-      } catch (e) {
-        // Error parsing JSON response
-        console.error(`Error parsing JSON response for ${url}:`, e);
-        reject("Error parsing server response."); // Reject the promise on parsing error
+        // Resolve with false status and the error response (parsed JSON or raw text)
+        resolve([false, errorResponse]);
       }
     };
 
     // Define the function to handle network errors
     xhr.onerror = function () {
       console.error(`Network Error for ${url}.`);
-      reject("Network Error."); // Reject the promise on network error
+      // Reject the promise on network error
+      // Provide a more structured error if needed
+      reject({ status: "error", message: "Network Error", code: 0 }); // Reject with an error object
     };
 
-    // Send the request with the JSON data in the request body
-    xhr.send(JSON.stringify(jsonData));
-  });
-}
+    // Define the function to handle request timeouts
+    xhr.ontimeout = function () {
+      console.error(`Request timed out for ${url}.`);
+      reject({ status: "error", message: "Request timed out", code: 408 }); // Reject with a timeout error object
+    };
 
-/**
- * Sends an AJAX POST request to a specified URL expecting HTML (text) response.
- *
- * @param {string} url - The API endpoint URL.
- * @returns {Promise<[boolean, string]>} A Promise that resolves with a tuple:
- * - [true, htmlContent]: If the request is successful (HTTP 2xx). htmlContent is the response text.
- * - [false, errorMessage]: If a network error or HTTP error occurs. errorMessage is a string.
- */
-function sendAjaxPostRequestText(url) {
-  return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.open("POST", url, true); // Method, URL, Asynchronous (true)
-
-      // Set request headers
-      // Note: Content-Type is often not strictly necessary for POST if sending empty body,
-      // but setting it to text/html might be semantically clearer if the server expects it.
-      // If your server *requires* a specific Content-Type for empty POST, set it here.
-      // xhr.setRequestHeader("Content-Type", "text/html"); // Optional, depending on server needs
-
-      // Retrieve and set the CSRF token header
-      // Assumes getCookie is defined and accessible
-      const csrfToken = getCookie("csrftoken");
-      if (csrfToken) {
-           xhr.setRequestHeader("X-CSRFToken", csrfToken);
-      } else {
-           console.warn(`CSRF token not found for ${url}. Request might fail.`);
-           // Decide how to handle missing CSRF token - reject or proceed?
-           // For most POST requests in Django, it's required.
-           reject("CSRF token not found.");
-           return; // Stop the function if token is missing
-      }
-
-      // Define the function to handle the response
-      xhr.onload = function () {
-          console.log(`DEBUG: AJAX POST status for ${url}: ${xhr.status}`);
-
-          if (xhr.status >= 200 && xhr.status < 300) {
-              // HTTP success status
-              resolve([true, xhr.responseText]); // Resolve with success status and the response text
-          } else {
-              // HTTP error status (4xx, 5xx)
-              console.error(`HTTP Error for ${url}: ${xhr.status} ${xhr.statusText}`);
-              // For text responses, the error body might not be JSON. Return status text.
-              resolve([false, `HTTP Error: ${xhr.status} ${xhr.statusText}`]);
-          }
-      };
-
-      // Define the function to handle network errors
-      xhr.onerror = function () {
-          console.error(`Network Error for ${url}.`);
-          reject("Network Error."); // Reject the promise on network error
-      };
-
-      // Send the request (no body needed for this specific function)
-      xhr.send(); // Sending no body for this HTML fetching function
+    // Send the request with the prepared body (or null for no body)
+    xhr.send(requestBody);
   });
 }
 

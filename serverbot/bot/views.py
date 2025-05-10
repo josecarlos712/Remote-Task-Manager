@@ -25,6 +25,9 @@ def login_view(request):
 def homePage(request):
     activities = Activity.objects.all()
     programs = Program.objects.all()
+    user = request.user
+    commands = Command.objects.all()
+    logger.debug(f"User: {user}, Activities: {activities}, Programs: {programs}, Commands: {commands}")
 
     # Ruta del directorio donde están los componentes
     components_dir = os.path.join(settings.BASE_DIR, 'bot', 'templates', 'bot', 'dynamic_components')
@@ -42,7 +45,7 @@ def homePage(request):
             context = {'error': message}
             return error_page_view(request, context['error'])
     # If the server was initialized successfully, we can render the home page
-    context = {'activities': activities, 'programs': programs, 'dynamic_components': components}
+    context = {'activities': activities, 'programs': programs, 'commands': commands, 'dynamic_components': components, 'user': user}
     return render(request, 'bot/home.html', context)
 
 

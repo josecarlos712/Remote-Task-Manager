@@ -4,7 +4,8 @@ Remote Task Manager v0.1.0. Basic web interface
 Remote Task Manager v0.2.0. Adding different capabilities to the server.
 Remote Task Manager v0.3.0. Loging, logout, register functionality.
 Remote Task Manager v0.4.0. Creating the commands system.
-Remote Task Manager v0.4.1. Creating the commands system. Adjusting models. 
+Remote Task Manager v0.4.1. Creating the commands system. Adjusting models.
+Remote Task Manager v0.4.2. Creating the commands system. Send commands requests.
 
 
 This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.

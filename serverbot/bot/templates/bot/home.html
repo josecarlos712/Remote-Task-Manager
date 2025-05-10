@@ -12,10 +12,8 @@
   </div>
 
   <!-- Incluir dinámicamente los componentes adicionales -->
-  {% for component in dynamic_components %}
-  <div id="extra-container" class="tab-content">
-    {% include 'bot/dynamic_components/'|add:component %}
-  </div>
+  {% include 'bot/dynamic_components/commands.html' %} {% for component in dynamic_components %}
+  <div id="extra-container" class="tab-content">{% include 'bot/dynamic_components/'|add:component %}</div>
   {% endfor %}
 
   <div id="tab3" class="tab-content">
@@ -31,5 +29,4 @@
 </main>
 <!-- prettier-ignore -->
 {% endblock %}
-{% block footer_scripts %} {% endblock %}
 <!-- prettier-ignore-attribute -->

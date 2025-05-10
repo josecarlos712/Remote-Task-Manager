@@ -28,7 +28,6 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 
 # Dict to store avalilable and loaded commands to avoid DB queries.
-api_commands = []
 logger = logging.getLogger(__name__)
 
 
@@ -71,6 +70,7 @@ def api_command(request):
         return _method
 
     """
+        API URL: /api/command/
         Handles command execution requests via API.
         Requires authentication.
         Receives JSON data with 'client_id', 'command_id', and optional 'args'/'kwargs'.
@@ -409,19 +409,24 @@ def api_command(request):
     if not request:
         return _method
 
+    # Get commands list from the DB
+    api_commands = Command.objects.all()
+    api_commands_ids = [command.command_id for command in api_commands]
+    logger.debug(f"api_command() - Available commands: {api_commands}")
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON format."}, status=400)  # 400 for malformed JSON
 
-    if not data.get('command'):  # Check if the command is missing
+    if not data.get('command_id'):  # Check if the command is missing
         return JsonResponse({"error": "Missing command."}, status=400)  # 400 for missing command
 
-    command = data.get('command')
+    command = data.get('command_id')
     # TODO: Get the command from the database. If null, do nothing (maybe is an uninplemented command).
     # Checks if the command is in the list of available commands
-    if command not in api_commands:
-        return JsonResponse({"error": "api_command() - Command not found."}, status=404)  # 404 for command not found
+    if command not in api_commands_ids:
+        return JsonResponse({"error": f"api_command() - Command {command} not found."}, status=404)  # 404 for command not found
 
     # Get the command from the database
     command_obj: Command = get_command_by_id(command)
@@ -431,12 +436,8 @@ def api_command(request):
     # Get the arguments from the request
     args = data.get('args', [])  # Default to an empty dictionary if no args are provided
 
-    # Call the command function
-    try:
-        command_obj()
-    except Exception as e:
-        # Handle the case where the command execution fails
-        return JsonResponse({"error": f"api_command() - Command '{command}' execution failed: {str(e)}"}, status=500)
+    # Call the command function sending and API request to the client
+    # TODO: Send the command to the client
 
     return JsonResponse({"message": f"Command '{command}' executed successfully."}, status=200)
 

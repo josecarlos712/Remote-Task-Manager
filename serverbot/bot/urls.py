@@ -17,7 +17,7 @@ urlpatterns = [
     # API URLs
     #path('api/data/<str:pk>', views_api.api_data, name='get_data'),
     path('api/data/tree', views_api.api_get_tree, name='get_tree'),
-    path('api/command', views_api.api_command, name='execute_function'),
+    path('api/command/execute', views_api.api_command, name='execute_command'),
     path('api/accounts/register', views_api.api_register, name="api_register"),
     path('api/accounts/login', views_api.api_login, name="api_login"),
     path('api/accounts/logout', views_api.api_logout, name="api_logout"),
