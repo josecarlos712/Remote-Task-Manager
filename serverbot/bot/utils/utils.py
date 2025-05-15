@@ -246,12 +246,12 @@ def send_client_post_request(client_id: int, user: User, endpoint: str, body: di
         return f"send_client_post_request() - An unexpected error occurred for client {client_obj} at {endpoint}: {e}", 500  # Indicate failure and internal server error status
 
 
-def send_client_get_request(client_obj, endpoint):
+def send_client_get_request(client_id: int, endpoint: str) -> tuple:
     """
     Sends a GET request to a specific API endpoint on a client application.
 
     Args:
-        client_obj (Client): The Django Client model instance representing the client.
+        client_id (int): The Django Client ID representing the client.
         endpoint (str): The API endpoint path on the client (e.g., 'api/status/', 'api/commands/').
                         Should NOT start with a leading slash if joining with base URL.
 
@@ -259,12 +259,18 @@ def send_client_get_request(client_obj, endpoint):
         dict or list or None: The parsed JSON response received from the client (can be a dict or list),
                               or None if the request fails or the response is invalid.
     """
-    if not client_obj:
-        logger.error("send_client_get_request() - Received None client object.")
+    if not client_id:
+        logger.error("send_client_get_request() - Received None client ID.")
         return None, 400
     if not endpoint:
         logger.error("send_client_get_request() - Received empty endpoint string.")
         return None, 400
+
+    # Fetch the client object from the database using the provided client_id
+    client_obj, success = Client.get_client_by_ID(client_id)
+    if not success:
+        logger.error(f"send_client_post_request() - Client with ID {client_id} not found.")
+        return f"Client with ID {client_id} not found.", 404  # Not Found
 
     # Construct the full URL for the client application's API endpoint
     base_url = f"http://{client_obj.local_ip}:{client_obj.port}"

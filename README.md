@@ -1,4 +1,4 @@
-# **Remote-Task-Manager v0.4.1**
+# **Remote-Task-Manager v0.4.3**
 
 Remote Task Manager v0.1.0. Basic web interface
 Remote Task Manager v0.2.0. Adding different capabilities to the server.
@@ -6,6 +6,7 @@ Remote Task Manager v0.3.0. Loging, logout, register functionality.
 Remote Task Manager v0.4.0. Creating the commands system.
 Remote Task Manager v0.4.1. Creating the commands system. Adjusting models.
 Remote Task Manager v0.4.2. Creating the commands system. Send commands requests.
+Remote Task Manager v0.4.3. Creating the program system. Send program requests.
 
 
 This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.
@@ -13,43 +14,28 @@ This is a compilation of utilities to manage your own PC using a Web UI to send 
 
 ## **Capabilities**
 
-**NEW:** Creating the commands system.
+**NEW:** Creating the programs system.
 
-**Adjusting models.** Adjusting the models to be more flexible and to be able to add new commands.
+## **New version: v0.4.3**
+Programs Feature
+The application includes a system for managing and monitoring programs available on remote clients. This feature allows the server to receive lists of programs from connected clients, maintain a database record of these programs, and track their status (like availability and running state).
 
-## **New version: v0.4.1**
-Commands Feature
-The application includes a robust system for managing and executing commands on remote clients. This feature allows authenticated and authorized users to trigger specific actions on connected client machines via the web interface.
+Key components of the Programs feature include:
 
-Key components of the Commands feature include:
+Program Model: Defines the structure for programs discovered on client machines. Each Program is linked to a specific Client and is uniquely identified by its name within that client. It stores metadata such as title, description, available status (whether the client reported it as available), is_running status, and timestamps (created, updated, start_time, end_time).
 
-Command Model: Defines the structure for individual commands available for execution. Each Command is linked to a specific Client and has a unique command_id within that client. It stores metadata like name, description, the Python handler path for server-side logic (though execution is forwarded), and expected args (as a JSON list).
+Client Model: Represents a remote client machine. Each Client has a unique local_ip and port, and is associated with users via main_user and allowed_users. It serves as the link between the server's database records and the actual client machine where programs reside.
 
-Client Model: Represents a remote client machine. Each Client has a unique local_ip and port. It is associated with a main_user (nullable) and a ManyToManyField (allowed_users) to specify which additional users have permission to access and execute commands on this client.
+update_programs_list Function: This function is responsible for synchronizing the list of programs for a specific client in the database with a list received from the client application. It iterates through the received list, using the sync_program_from_dict helper for individual program creation/updates, and sets programs not in the received list to available=False instead of deleting them.
 
-UserSettings Model: Linked to the User model via a OneToOneField, this model stores user-specific settings. Crucially for commands, it holds a JSONField (client_api_keys) which stores a dictionary mapping client IPs to the secret API keys required to authenticate requests sent from the server to the client application.
+update_existing_program Function: This function is a helper used by the synchronization process. Its specific role is to find an existing Program object for a given Client and name and update only the fields provided in the input dictionary (program_data). It ensures that programs are only updated if they already exist and handles updating fields like title, description, available, is_running, and timestamps (start_time, end_time). It includes validation for input data types and logs warnings/errors for missing programs or invalid data.
 
-/api/command/execute/ Endpoint: This Django API view handles incoming requests to execute a command. It performs the following steps:
+Client API Endpoint (e.g., /api/program/list): The client application is expected to expose an API endpoint (e.g., /api/program/list) that the server can call (likely via a POST request) to retrieve the current list of programs available on that client. This list is then processed by the server's update_programs_list function.
 
-Authenticates the user (@login_required).
+Client API Endpoint (e.g., api/program/status): The client application might also expose an endpoint (e.g., api/program/status) that the server can call to receive periodic updates on the running status of programs. This would trigger the server to call update_existing_program to update the is_running, start_time, and end_time fields for specific programs.
 
-Validates the incoming JSON data (requires client_id, command_id, and optionally args/kwargs).
+This system allows the server to maintain a dynamic inventory of programs available on connected clients, reflecting their current state based on information received from the clients themselves.
 
-Retrieves the specified Client object from the database.
-
-Checks if the requesting user is allowed to access the retrieved client using the Client.is_user_allowed() method.
-
-Retrieves the secret API key for the target client from the user's UserSettings.
-
-Constructs an outgoing HTTP POST request to the client application's API endpoint (http://<client_ip>:<client_port>/api/command/execute/).
-
-Includes the command_id, args, kwargs, and importantly, the secret API key in a custom header (e.g., X-Client-API-Key) in the outgoing request.
-
-Forwards the response received from the client application back to the original web client.
-
-Includes comprehensive error handling for invalid requests, permission issues, client not found, and communication errors with the client application (timeouts, connection errors, client-side errors).
-
-This architecture ensures that command execution requests are authenticated, authorized based on user-to-client permissions, and securely forwarded to the correct client application using a shared secret API key for validation on the client side.
 
 ## **Function definitions**
 

@@ -374,33 +374,48 @@ def api_update_program_list(request):
         return JsonResponse(response, status=200)
 
 
-@login_required
-@csrf_protect
-@require_POST
+@login_required # Requires the user to be logged in
+@csrf_protect # Requires a valid CSRF token for POST requests
+@require_POST # Only allows POST requests
 def refresh_processes_status(request):
-    _method = 'GET'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
-    if not request:
-        return _method
+    """
+    API URL: api/program/status/refresh (or similar, based on your urls.py)
+    API endpoint to refresh the 'available' and running status of programs
+    for a specific client by making a GET request to the client's
+    '/api/program/status' endpoint.
+
+    Requires authentication and CSRF token.
+    Expects JSON body with 'client_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
 
     try:
-        # Parse the incoming JSON data
         data = json.loads(request.body)
-
-        # Access data from the parsed JSON
-        processes_status = dict(zip(data.get('keys'), data.get('values')))
-        print(processes_status)
-
-        # Server side, processes status refresh
-
-        data = {
-            'message': f'{processes_status}',
-            'status': 'success'
-        }
-        return JsonResponse(data, status=200)
+        logger.debug(f"refresh_processes_status() - Received data: {data}")
 
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        logger.error("refresh_processes_status() - Invalid JSON format received.")
+        return ErrorResponse("Invalid JSON format received.").to_response()
+
+    # Get required data from the request
+    client_id = data.get('client_id')
+
+    # Validate required fields in the incoming request
+    if not client_id:
+        logger.warning("refresh_processes_status() - Missing 'client_id' in request data.")
+        return ValidationErrorResponse("Falta el ID del cliente.").to_response()
+
+
+
+    # --- Update Program status in the database based on client response ---
+    # Client response from 'api/program/status' shoul look like this:
+    # {
+    #     "program_1": {
+    #         "available": true
+    #     }
+    # }
+    update_programs_list(client_id, program_status_data)
 
 
 # ---- User Registration and Authentication API ----

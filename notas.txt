@@ -7,7 +7,8 @@ Comandos
 
 Programas
  O API. Recibir programa desde la web (id_programa, id_cliente). Revisar parametros. Enviar peticion de programa al cliente.
- O API. Actualizar lista de programas (id_cliente). Enviar peticion GET de lista de programas al cliente. Recibir, transformar y enviar de vuelta a la web.
+ O API. Sincronizar lista de programas (id_cliente). Enviar peticion GET de lista de programas al cliente. Recibir, crear o cambiar el existente y enviar de vuelta a la web.
+ O API. Actualizar lista de programas parcialmente. Esta funcion no crea ningun progrma nuevos, sirve para actualizar estados de programas existentes.
 
 Actividades (unicamente para el servidor)
  - API. Crear actividad. (id_usuario, parametros)

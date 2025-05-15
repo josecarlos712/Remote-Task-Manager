@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from django.http import JsonResponse
 
+from .APIResponse import InternalErrorResponse
 from .utils import check_None, check_instance, send_client_get_request
 from ..models import Program, Client
 import json
@@ -18,56 +19,42 @@ processes = {}
 processes_status = {}
 
 
-def is_executable_path(path):
-    # TODO
-    executable_extensions = ['.exe', '.bat']
-    _, extension = os.path.splitext(path)
-    return os.path.isfile(path) and extension in executable_extensions
+def refresh_processes_status(client_id: int):
+    """
+    Refreshes the status of all processes running on the client application.
 
+    args:
+        client_id (int): The ID of the client whose processes are to be refreshed.
+    returns:
+        JsonResponse: A JSON response containing the status of the processes.
+        or
+        program_status_data (dict): A dictionary containing the status of the processes.
+        and
+        status_code (int): The HTTP status code of the response.
+    """
+    # --- Make GET request to the client's '/api/program/status' endpoint ---
+    client_status_endpoint = "api/program/status"  # The endpoint on the client application
 
-# TO-DO This runs on client-side app. This function must be modified to send a request to the client through API, instead of running the programs straight on the server
-def run_program_in_background(program_id, program_path):
-    # Get the file extension
-    _, ext = os.path.splitext(program_path)
+    # logger.debug(f"refresh_processes_status() - Making GET request to client {client_obj} at /{client_status_endpoint}")
 
-    if ext.lower() == '.exe':
-        # If the program is an executable
-        process = subprocess.Popen([program_path])
-    elif ext.lower() == '.bat':
-        # If the program is a batch file
-        process = subprocess.Popen([program_path], shell=True)
-    else:
-        raise ValueError("Unsupported file extension. Only .exe and .bat are allowed.")
+    # Use the helper function to send the GET request to the client
+    program_status_data, client_status_code = send_client_get_request(client_id, client_status_endpoint)
 
-    # Store the process in the dictionary with its ID
-    if process:
-        processes[program_id] = process
-    return refresh_processes_status()
+    # Handle errors from the GET request to the client
+    if program_status_data is None:
+        logger.error(
+            f"refresh_processes_status() - Failed to get program status from client {client_id}. Client status code: {client_status_code}")
+        # send_client_get_request already logs specific errors (timeout, connection, http, json)
+        return InternalErrorResponse(f"Client responded with status {client_status_code}").to_response(), client_status_code
 
+    # Assuming the client's response is a list of program status dictionaries
+    if not isinstance(program_status_data, dict):
+        logger.error(
+            f"refresh_processes_status() - Client {client_id} returned invalid status data format. Expected a dict, got {type(program_status_data)}.")
+        return InternalErrorResponse(
+            f"Client {client_id} returned invalid status data format. Expected a dict, got {type(program_status_data)}.").to_response(), 400  # Bad Request
 
-def get_process_status(pk):
-    process = processes[pk]
-    if process:
-        # Check if the process is still running
-        return process.poll() is None
-    return False
-
-
-def refresh_processes_status():
-    # TODO: Improve function
-    url_api_refresh = 'http://192.168.0.3:8000/refresh/'
-    for pk, process in processes.items():
-        processes_status[pk] = get_process_status(pk)
-    endpoint = url_api_refresh + "processes_status/"
-    processes_status_serialized = {
-        'keys': list(processes_status.keys()),
-        'values': list(processes_status.values())
-    }
-    print(processes_status_serialized)
-    response = JsonResponse(processes_status_serialized, status=200)
-    response_str = response.content.decode('utf-8')
-    response_dict = json.loads(response_str)
-    return response_dict
+    return program_status_data, 200  # Return the status data and HTTP status code
 
 
 def sync_programs_from_json(json_file_path):
@@ -122,8 +109,6 @@ def sync_programs_from_json(json_file_path):
         Program.objects.filter(name__in=programs_to_delete).delete()
     return messages
 
-
-# TODO: Adapt these program fucntions to work with the programs.
 
 def sync_program_from_dict(client_obj: Client, program_data: dict):
     """
@@ -405,7 +390,7 @@ def update_programs_list(client_id: int, program_dict: dict) -> bool:
             else:
                 logger.info(f"No programs to set unavailable for client {client_obj}.")
 
-        logger.info(f"program list synchronization completed for client: {client_obj}")
+        logger.info(f"Program list synchronization completed for client: {client_obj}")
         return True  # Indicate overall success
 
     except Exception as e:
