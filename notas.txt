@@ -1,0 +1,49 @@
+SERVIDOR
+
+Comandos
+
+ O API. Recibir comando desde la web (id_comando, id_cliente, parametros). Revisar parametros. Enviar peticion de comando al cliente.
+ O API. Actualizar lista de comandos (id_cliente). Enviar peticion GET de lista de comandos al cliente. Recibir, transformar y enviar de vuelta a la web. Actualizar lista de comandos en la base de datos.
+
+Programas
+ O API. Recibir programa desde la web (id_programa, id_cliente). Revisar parametros. Enviar peticion de programa al cliente.
+ O API. Actualizar lista de programas (id_cliente). Enviar peticion GET de lista de programas al cliente. Recibir, transformar y enviar de vuelta a la web.
+
+Actividades (unicamente para el servidor)
+ - API. Crear actividad. (id_usuario, parametros)
+ - API. Actualizar/modificar actividad. (id_actividad, id_usuario, parametros)
+ - API. Eliminar actividad. (id_actividad, id_usuario)
+ - API. Obtener actividad. (id_actividad)
+ - API. Obtener lista de actividades.
+
+Mensajes (unicamente para el servidor)
+ - API. Crear mensaje. (id_usuario, parametros)
+ - API. Actualizar/modificar mensaje. (id_mensaje, id_usuario, parametros)
+ - API. Eliminar mensaje. (id_mensaje, id_usuario)
+ - API. Obtener mensaje. (id_mensaje)
+ - API. Obtener lista de mensajes.
+
+Configuracion (UserSettings)
+ - API. Crear configuracion. (id_usuario, vacio)
+ - API. Actualizar/modificar configuracion. (id_configuracion, id_usuario, parametros a modificar)
+ - La configuracion solo se elimina en cascada si se elimina el usuario.
+    { (BD de configuracion)
+        id_configuracion,
+        id_usuario,
+        fecha_creacion,
+        fecha_modificacion,
+        API_keys (json),
+        configuracion (json)
+    }
+
+
+CLIENTE
+
+Comandos
+ - API. Ejecutar comando. Recibir comando desde el servidor (id_comando, parametros). Revisar parametros. Ejecutar comando. Responder al servidor con el resultado.
+ - API. Actualizar lista de comandos. Recibir peticion GET de actualizar lista de comandos desde el servidor. Descubir comandos y devolver una lista al servidor.
+
+Programas
+ - API. Iniciar programa. Recibir programa desde el servidor (id_programa). Iniciar programa. Responder al servidor con el resultado.
+ - API. Detener programa. Recibir programa desde el servidor (id_programa). Detener programa. Responder al servidor con el resultado. (algunos programas no se pueden detener)
+ - API. Actualizar lista de programas. Recibir peticion GET de actualizar lista de programas desde el servidor. Descubir programas y devolver una lista al servidor.

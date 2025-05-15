@@ -5,27 +5,30 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.urls import get_resolver
 from rest_framework.authtoken.models import Token
 
 from . import urls
 import logging
+
 from .utils import APIResponse
+from .utils.commands_utils import update_commands_list
+from .utils.programs_utils import update_programs_list
 from .utils.APIResponse import (
     SuccessResponse,
     BadMethodErrorResponse,
-    ValidationErrorResponse,
     InternalErrorResponse,
-    BadRequestResponse,
     NotFoundResponse,
     ErrorResponse,
-    ForbiddenErrorResponse,
+    ForbiddenErrorResponse, ValidationErrorResponse, UnauthorizedResponse, check_None_API,
 )
-from .commands.commands_utils import get_command_by_id
-from .models import Command, Client
+from .models import Command, Client, UserSettings
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
+
+from .utils.utils import check_None, send_client_get_request, send_client_post_request
 
 # Dict to store avalilable and loaded commands to avoid DB queries.
 logger = logging.getLogger(__name__)
@@ -59,24 +62,104 @@ logger = logging.getLogger(__name__)
 #     else:
 #         return JsonResponse({"error": "Method not allowed."}, status=405)
 
+# ---- Command API ----
+@require_POST  # Only allows POST requests
+def api_update_commands_list(request):
+    """
+    API URL: api/command/list
+    API endpoint to check if the currently logged-in user is allowed
+    to access a specific client based on its ID.
+
+    Requires authentication, CSRF token, and is a POST request.
+    Expects JSON body with 'client_id'.
+    """
+    try:
+        # Attempt to parse the JSON data from the request body
+        data = json.loads(request.body)
+        logger.debug(f"api_update_commands_list() - Received data: {data}")
+
+    except json.JSONDecodeError:
+        logger.error("api_update_commands_list() - Invalid JSON format received.")
+        return ErrorResponse("Invalid JSON format.", 400).to_response()
+
+    # Get the client_id from the request data
+    client_id = data.get('client_id')
+
+    # Validate the presence of client_id
+    check_None_API(client_id, "api_update_commands_list() - Missing 'client_id' in request data.")
+
+    # Retrieve the Client object
+    logger.debug(f"api_update_commands_list() - Attempting to retrieve client with ID: {client_id}")
+    try:
+        client_obj = Client.objects.get(pk=client_id)
+        logger.debug(f"api_update_commands_list() - Successfully retrieved client: {client_obj}")
+
+    except ObjectDoesNotExist:
+        logger.warning(f"api_update_commands_list() - Client with ID '{client_id}' not found.")
+        return NotFoundResponse("client_id").to_response()
+
+    except MultipleObjectsReturned:
+        # Should not happen for primary key lookup, but included for robustness
+        logger.error(f"api_update_commands_list() - Multiple clients found for ID '{client_id}'. Database error?")
+        return InternalErrorResponse("Multiple clients found for this ID.").to_response()
+
+    except Exception as e:
+        # Catch any other potential database errors during retrieval
+        logger.error(f"api_update_commands_list() - Error retrieving client '{client_id}': {e}", exc_info=True)
+        return InternalErrorResponse("A unexpected exception occurred while retrieving the client.").to_response()
+
+    # --- Check User Allowance for the Client ---
+    user = request.user  # Get the currently authenticated user
+
+    # Use the is_user_allowed method of the Client model
+    if not client_obj.is_user_allowed(user):
+        logger.debug(
+            f"api_update_commands_list() - User '{user.username}' is not allowed to access client {client_obj}.")
+        # If the user is allowed, return a success response
+        return UnauthorizedResponse(f"{user} is not allowed to access {client_obj}.").to_response()  # 200 OK
+
+    # --- Update the commands list for the client ---
+    # Get the list of commands from the database
+    logger.debug(f"api_update_commands_list() - Fetching command list for client {client_obj}.")
+
+    # Send the GET request to the client application on the endpoint 'api/command/list'
+    commands_api_endpoint = "api/command/list"  # Endpoint to fetch the command list
+    command_list, status_code = send_client_get_request(client_obj, commands_api_endpoint)
+
+    # Check if the command list was successfully retrieved
+    if status_code != 200:
+        logger.error(f"api_update_commands_list() - Failed to retrieve command list from client {client_obj}.")
+        return InternalErrorResponse("Failed to retrieve command list from the client.").to_response()
+
+    logger.debug(f"api_update_commands_list() - Command list for client {client_obj}: {command_list}")
+
+    # Update the Command DB with the new command list
+    sync_status = update_commands_list(client_obj, command_list)
+
+    if sync_status:
+        logger.info(f"api_update_commands_list() - Command list synchronized successfully for client {client_obj}.")
+        return SuccessResponse("Command list synchronized successfully.").to_response()
+    else:
+        logger.error(f"api_update_commands_list() - Failed to synchronize command list for client {client_obj}.")
+        return InternalErrorResponse("Failed to synchronize command list.").to_response()
+
 
 @login_required
 @csrf_protect
 @require_POST
-def api_command(request):
-    _method = 'POST'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
-    if not request:
-        return _method
-
+def api_execute_command(request):
     """
-        API URL: /api/command/
+        API URL: api/command/execute
         Handles command execution requests via API.
         Requires authentication.
         Receives JSON data with 'client_id', 'command_id', and optional 'args'/'kwargs'.
         Verifies if the requesting user is allowed to access the specified client.
         Forwards the command execution request to the client application's API.
         """
+    _method = 'POST'
+    # If the request is None, the function returns if the function is 'GET' or 'POST'
+    if not request:
+        return _method
     command_endpoint = "api/command/execute/"  # Endpoint to forward the command to the client application
 
     try:
@@ -149,16 +232,22 @@ def api_command(request):
         return JsonResponse(api_response.to_dict(), status=403)
 
     # Get user api key stored in the user
-    # TODO: Define CLIENT_API_SECRET_KEY in your settings.py
-    client_api_key = getattr(settings, 'CLIENT_API_SECRET_KEY', None)
-
-    if not client_api_key:
-        logger.error("CLIENT_API_SECRET_KEY is not defined in settings.")
-        # Handle this critical configuration error - maybe return a 500 Internal Server Error
-        api_response = InternalErrorResponse(message="Server configuration error: Client API key is missing.")
-        return JsonResponse(api_response.to_dict(), status=500)
+    # TODO: Get client api key from UserSettings
+    # Get the UserSettings from the user
+    user_settings = user.usersettings_set.first()
+    if user_settings:
+        # Get the client API keys dict from the UserSettings
+        client_api_key_dict = user_settings.client_api_keys
+        # Look for the client API key in the dict using the name of the client
+        client_api_key = client_api_key_dict.get(client_obj.name)
+        if not client_api_key:
+            logger.error(
+                f"api_command() - Client API key not found for client {client_obj.name} in user's ({user}) settings: {client_api_key_dict}.")
+            return UnauthorizedResponse("Client API key not found.").to_response()
+    # client_api_key = getattr(settings, 'CLIENT_API_SECRET_KEY', None)
 
     # --- Forward the command execution request to the Client Application ---
+    # TODO Replace with the send API request function
     client_api_url = f"http://{client_obj.local_ip}:{client_obj.port}/{command_endpoint}"
 
     # Prepare the payload to send to the client application
@@ -166,9 +255,6 @@ def api_command(request):
         'command_id': command_id,
         'args': args,
         'kwargs': kwargs,
-        # TODO: Include any other necessary data for the client application
-        # e.g., user identification if the client needs to know which user initiated the command
-        # 'user_id': user.pk,
     }
 
     # Prepare the headers, including the custom API key header
@@ -176,7 +262,6 @@ def api_command(request):
     headers = {
         'Content-Type': 'application/json',
         'X-Client-API-Key': client_api_key  # Add your secret key here
-        # TODO: Add any other headers required by the client API
     }
 
     logger.debug(
@@ -237,6 +322,88 @@ def api_command(request):
         return JsonResponse(api_response.to_dict(), status=500)
 
 
+# ---- Program API ----
+@login_required
+@csrf_protect
+@require_POST
+def api_update_program_list(request):
+    """
+    API URL: api/program/list
+    API endpoint to update the program list for a specific client.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'client_id'.
+    """
+    _method = 'POST'
+    # If the request is None, the function returns if the function is 'GET' or 'POST'
+    if not request:
+        return _method
+
+    update_programs_list_endpoint = "api/program/list"  # Endpoint to forward the command to the client application
+
+    try:
+        data = json.loads(request.body)
+        logger.debug(f"api_update_program_list() - Received data: {data}")
+
+        # Get the client_id from the request data
+        client_id = data.get('client_id')
+
+        # Validate the presence of client_id
+        client_id_response = check_None(client_id, "api_update_program_list() - Missing 'client_id' in request data.")
+        if client_id_response:
+            return client_id_response
+    except json.JSONDecodeError:
+        logger.error("api_update_program_list() - Invalid JSON format received.")
+        return ErrorResponse(message="Invalid JSON format received.").to_response()
+
+    # Send POST request to client.
+    response, code = send_client_post_request(client_id, request.user, update_programs_list_endpoint, data)
+    # Client response from 'api/program/list' shoul look like this:
+    # {
+    #     "program_1": {
+    #         "name": "Program 1",
+    #         "title": "Title of Program 1",
+    #         "description": "Description of Program 1"
+    #     }
+    # }
+    if code == 200:
+        # If the request was successful, Update the program list in the database
+        # Get p
+        update_programs_list(client_id, response)
+
+        logger.debug(f"api_update_program_list() - Successfully updated program list for client {client_id}.")
+        return JsonResponse(response, status=200)
+
+
+@login_required
+@csrf_protect
+@require_POST
+def refresh_processes_status(request):
+    _method = 'GET'
+    # If the request is None, the function returns if the function is 'GET' or 'POST'
+    if not request:
+        return _method
+
+    try:
+        # Parse the incoming JSON data
+        data = json.loads(request.body)
+
+        # Access data from the parsed JSON
+        processes_status = dict(zip(data.get('keys'), data.get('values')))
+        print(processes_status)
+
+        # Server side, processes status refresh
+
+        data = {
+            'message': f'{processes_status}',
+            'status': 'success'
+        }
+        return JsonResponse(data, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+
+# ---- User Registration and Authentication API ----
 @csrf_protect
 @require_POST
 def api_register(request):
@@ -304,7 +471,7 @@ def api_register(request):
                     first_name=first_name,
                     last_name=last_name
                 )
-                # No need to call user.save() after create_user
+                # When creating a usser, a UserSettings is created automatically
 
             except Exception as e:
                 # Catch potential errors during user creation (e.g., database issues)
@@ -401,75 +568,6 @@ def api_login(request):
                             status=405)  # 405 Method Not Allowed
 
 
-@csrf_protect
-@require_POST
-def api_command(request):
-    _method = 'POST'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
-    if not request:
-        return _method
-
-    # Get commands list from the DB
-    api_commands = Command.objects.all()
-    api_commands_ids = [command.command_id for command in api_commands]
-    logger.debug(f"api_command() - Available commands: {api_commands}")
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON format."}, status=400)  # 400 for malformed JSON
-
-    if not data.get('command_id'):  # Check if the command is missing
-        return JsonResponse({"error": "Missing command."}, status=400)  # 400 for missing command
-
-    command = data.get('command_id')
-    # TODO: Get the command from the database. If null, do nothing (maybe is an uninplemented command).
-    # Checks if the command is in the list of available commands
-    if command not in api_commands_ids:
-        return JsonResponse({"error": f"api_command() - Command {command} not found."}, status=404)  # 404 for command not found
-
-    # Get the command from the database
-    command_obj: Command = get_command_by_id(command)
-    if not command_obj:
-        return JsonResponse({"error": "api_command() - It could not access to the commands on the DB."}, status=404)
-
-    # Get the arguments from the request
-    args = data.get('args', [])  # Default to an empty dictionary if no args are provided
-
-    # Call the command function sending and API request to the client
-    # TODO: Send the command to the client
-
-    return JsonResponse({"message": f"Command '{command}' executed successfully."}, status=200)
-
-
-@csrf_protect
-@require_POST
-def refresh_processes_status(request):
-    _method = 'GET'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
-    if not request:
-        return _method
-
-    try:
-        # Parse the incoming JSON data
-        data = json.loads(request.body)
-
-        # Access data from the parsed JSON
-        processes_status = dict(zip(data.get('keys'), data.get('values')))
-        print(processes_status)
-
-        # Server side, processes status refresh
-
-        data = {
-            'message': f'{processes_status}',
-            'status': 'success'
-        }
-        return JsonResponse(data, status=200)
-
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
-
-
 @require_POST
 def get_user_from_token(request):
     """
@@ -500,28 +598,3 @@ def get_user_from_token(request):
             return None  # Token not provided in JSON
     except json.JSONDecodeError:
         return None  # Invalid JSON
-
-
-def api_get_tree(request):
-    _method = 'GET'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
-    if not request:
-        return _method
-
-    if request.method == 'GET':
-        # This functions gets the api tree from the urls.py variable 'urlpatterns', and gets the method calling the function with the parameter None.
-        # It returns a dictionary with the api tree.
-        api_tree = {}
-        for url in urls.urlpatterns:
-            # If the url starts with 'api/', it is an api endpoint
-            if url.pattern.regex.pattern.startswith('api/'):
-                # Get the method and description of the url
-                method = url.callback(request=None)
-                api_tree[url.name] = {
-                    'description': url.callback.__doc__,
-                    'methods': method,
-                    'url': url.pattern.regex.pattern,
-                }
-        print(api_tree)
-        return SuccessResponse("API endpoints tree", api_tree).to_dict(), 200
-    return BadMethodErrorResponse(request.method, _method).to_dict(), 405

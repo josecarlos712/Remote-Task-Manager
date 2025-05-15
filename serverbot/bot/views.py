@@ -35,15 +35,15 @@ def homePage(request):
     components = [f for f in os.listdir(components_dir) if f.endswith('.html')]
 
     # If it's the first time the server is loaded, we need to do some initialization
-    if config.SERVER_INITIALIZATION:
-        status, message = config.configuration.initialize_server()
-        if status:
-            # If the server was initialized successfully, we can set the SERVER_INITIALIZATION to False
-            config.SERVER_INITIALIZATION = False
-        else:
-            # If the server was not initialized successfully, we can return an error page
-            context = {'error': message}
-            return error_page_view(request, context['error'])
+    # if config.SERVER_INITIALIZATION:
+    #     status, message = config.configuration.initialize_server()
+    #     if status:
+    #         # If the server was initialized successfully, we can set the SERVER_INITIALIZATION to False
+    #         config.SERVER_INITIALIZATION = False
+    #     else:
+    #         # If the server was not initialized successfully, we can return an error page
+    #         context = {'error': message}
+    #         return error_page_view(request, context['error'])
     # If the server was initialized successfully, we can render the home page
     context = {'activities': activities, 'programs': programs, 'commands': commands, 'dynamic_components': components, 'user': user}
     return render(request, 'bot/home.html', context)

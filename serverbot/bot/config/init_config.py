@@ -6,6 +6,8 @@ from logging.handlers import TimedRotatingFileHandler
 
 from django.conf import settings
 
+from ..utils.utils import check_None, get_absolute_path
+
 
 class Configuration():
     def __init__(self, config_path='configuration.ini'):
@@ -13,6 +15,7 @@ class Configuration():
         self.logging = None
         self.config_path = f"bot/config/{config_path}"
         self._settings = {}
+        self.initialize_server()
 
     # This function is executed on the start of the server to check if everything is okay.
     def initialize_server(self):
@@ -23,15 +26,16 @@ class Configuration():
         self.logging.info("Starting API Server...")
         self.load_config()
         self.load_specifications()
-        self.logging.debug(f"Loading configuration and specifications...\n{self._settings}")
-        self.check_files()
+
+        #self.check_files()
+        self.check_DB()
 
         self.logging.log(logging.INFO, "API Server started successfully.")
 
         return True, "Server initialized successfully."
 
     def logging_configuration(self) -> logging.Logger:  # Changed return type hint to logging.Logger
-        log_file = "logs/system.log"
+        log_file = get_absolute_path("logs/serverbot.log")  # Use the absolute path for the log file
         log_dir = os.path.dirname(log_file)  # Get the directory path
 
         # Create the log directory if it doesn't exist
@@ -65,7 +69,7 @@ class Configuration():
         import requests
         import subprocess
 
-        system_info_path = "logs/system_info.json"
+        system_info_path = get_absolute_path("logs/system_info.json")
         self._system_info = {}
 
         # In the specifications file there is a list of static values of the client (name, local ip, etc)
@@ -155,6 +159,7 @@ class Configuration():
             with open(filename, "w", encoding="utf-8") as file:
                 json.dump(info, file, indent=4)
                 file.close()
+            self.logging.debug(f"System info gathered: {info}")
             return info
 
         # Run the function to save the info
@@ -169,29 +174,22 @@ class Configuration():
         Loads the configuration file and parses key-value pairs.
         Creates the file with default content if it doesn't exist.
         """
+        self.logging.debug(f"Loading configuration and specifications...\n{self._settings}")
         # Get the directory path of the config file
-        config_dir = os.path.dirname(self.config_path)
+        config_dir = get_absolute_path(self.config_path)
 
         # Create the config directory if it doesn't exist (similar to logging)
         if config_dir and not os.path.exists(config_dir):
             try:
                 os.makedirs(config_dir, exist_ok=True)
-                if self.logging:
-                    self.logging.info(f"Created configuration directory: {config_dir}")
+                self.logging.debug(f"Created configuration directory: {config_dir}")
             except OSError as e:
-                if self.logging:
-                    self.logging.error(f"Error creating configuration directory {config_dir}: {e}")
-                else:
-                    print(
-                        f"Error creating configuration directory {config_dir}: {e}")  # Fallback if logging isn't set up yet
+                self.logging.error(f"Error creating configuration directory {config_dir}: {e}")
                 # Depending on severity, you might want to raise the exception or exit
 
         # Check if the config file exists
         if not os.path.exists(self.config_path):
-            if self.logging:
-                self.logging.info(f"Configuration file not found: {self.config_path}. Creating with default content.")
-            else:
-                print(f"Configuration file not found: {self.config_path}. Creating with default content.")  # Fallback
+            self.logging.info(f"Configuration file not found: {self.config_path}. Creating with default content.")
 
             # Create the file with some default content (INI format example)
             default_content = """
@@ -208,7 +206,7 @@ class Configuration():
                     f.write(default_content.strip())  # Write default content and remove leading/trailing whitespace
                     f.close()
                 if self.logging:
-                    self.logging.info(f"Default configuration file created at: {self.config_path}")
+                    self.logging.debug(f"Default configuration file created at: {self.config_path}")
                 else:
                     print(f"Default configuration file created at: {self.config_path}")  # Fallback
 
@@ -221,7 +219,6 @@ class Configuration():
                 return  # Exit the function if file creation failed
 
         # Now that the file is guaranteed to exist, open and parse it
-        self._settings = {}
         try:
             # Assuming you are using configparser as the parsing logic is similar to INI
             config = configparser.ConfigParser()
@@ -234,7 +231,7 @@ class Configuration():
                     self._settings[section.lower()][key.lower()] = self.parse_value(value)  # Keep keys lowercase
 
             if self.logging:
-                self.logging.info(f"Configuration loaded successfully on {self.config_path}")
+                self.logging.debug(f"Configuration loaded successfully on {self.config_path}")
 
         except configparser.Error as e:
             if self.logging:
@@ -248,13 +245,7 @@ class Configuration():
             else:
                 print(f"Error reading configuration file {self.config_path}: {e}")  # Fallback
             # Handle file reading errors
-
-        # Ensure self._settings has necessary default values even if loading failed partially
-        # Example:
-        if 'api' not in self._settings:
-            self._settings['api'] = {}
-        if 'api_key' not in self._settings['api']:
-            self._settings['api']['api_key'] = 'DEFAULT_API_KEY'  # Provide a fallback default
+        print(f"Configuration loaded: {self._settings}")
 
     def parse_value(self, value):
         """Converts string values to appropriate data types."""
@@ -283,8 +274,10 @@ class Configuration():
 
     def check_files(self):
         """Check for important directories and files inside the proyect."""
+        self.logging.debug(f"Checking files...")
         # Checking downloads
-        downloads_folder = os.path.join(settings.BASE_DIR, 'bot', self["paths"]["path_downloads"])
+        check_None(self._settings.get('paths'), "check_files() - paths is None")
+        downloads_folder = get_absolute_path(self._settings.get('paths').get('path_downloads"'))
         is_absolute_path = bool(re.match(r"^[A-Za-z]:[\\/]", downloads_folder))
 
         if not os.path.isdir(downloads_folder) and is_absolute_path:
@@ -301,6 +294,48 @@ class Configuration():
             return False, f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'."
 
         return True, "CheckFiles OK"
+
+    def check_DB(self):
+        """Check for basic entrances on the database."""
+        from ..models import Activity, User
+
+        # Check if User System exists
+        try:
+            user = User.objects.get(username="System")
+            if user:
+                self.logging.debug(f"CheckDB: User System ({user}) exists.")
+        except User.DoesNotExist:
+            # If it doesn't exist, create it
+            user, created = User.objects.get_or_create(
+                username="System",
+                defaults={
+                    "first_name": "System",
+                    "last_name": "System",
+                    "email": "system@localhost",
+                    "is_superuser": True,
+                    "is_staff": True,
+                }
+            )
+            self.logging.debug(f"CheckDB: Created User System ({user}).")
+
+        # Check if the Activity 0 exists
+        try:
+            activity = Activity.objects.get(id=0)
+            if activity:
+                self.logging.debug(f"CheckDB: Activity 0 ({activity}) exists.")
+        except Activity.DoesNotExist:
+            # If it doesn't exist, create it
+            activity, created = Activity.objects.get_or_create(
+                id=0,
+                defaults={
+                    "user": user,
+                    "name": "Default Activity",
+                    "description": "Default Activity",
+                    "date": "2023-01-01",
+                    "hour": "00:00",
+                }
+            )
+            self.logging.debug(f"CheckDB: Created Default Activity ({activity}).")
 
     def __getitem__(self, key, default=None):
         """Retrieves a configuration value given the key."""

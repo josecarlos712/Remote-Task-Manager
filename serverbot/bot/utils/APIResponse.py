@@ -3,15 +3,20 @@ from functools import wraps
 from typing import Optional, Dict
 
 import psutil
+from django.http import JsonResponse
+
 from ..config.config import LogLevel
 import logging
 from flask import jsonify
 
 
+logger = logging.getLogger(__name__)
+
+
 class APIResponse:
     """Base API Response class for standardizing API responses."""
 
-    def __init__(self, status: str, message: str, code: int , data: Optional[Dict] = None):
+    def __init__(self, status: str, message: str, code: int, data: Optional[Dict] = None):
         self.status = status
         self.message = message
         self.data = data
@@ -20,8 +25,15 @@ class APIResponse:
     def to_dict(self) -> dict:
         response = {"status": self.status, "message": self.message}
         if self.data is not None:
-            response["data"] = self.data
+            response = {"status": self.status, "message": self.message, "data": self.data}
         return response
+
+    def to_response(self) -> JsonResponse:
+        """
+        Converts the API response to a Django JsonResponse object.
+        This method is useful for returning the response in a Django view.
+        """
+        return JsonResponse(self.to_dict(), status=self.code)
 
 
 # ========================
@@ -34,7 +46,7 @@ class SuccessResponse(APIResponse):
     def __init__(self, message: str, data: Optional[Dict] = None):
         # Log successful response with message and data details
         logging.log(LogLevel.INFO.value, f"SuccessResponse: {message}, Data: {data}")
-        super().__init__("success", message, data)
+        super().__init__("success", message, 200, data)
 
 
 class ProcessResponse(SuccessResponse):
@@ -169,3 +181,29 @@ def error_handler(f):
             ), 500
 
     return wrapper
+
+
+def check_None_API(value, error_message: str=None):
+    """
+    Check if the given value is None or empty.
+
+    Args:
+        value: The value to check.
+        error_message (str, optional): An error message to log if the value is None or empty.
+    Returns:
+        tuple: A tuple containing the API response and an HTTP status code.
+    """
+    if value is None:
+        return JsonResponse(BadRequestResponse(error_message).to_dict(), status=400)  # 400 Bad Request
+    return None
+
+
+def check_instance_API(obj, instance, error_message: str=None):
+    """
+
+    Returns:
+        tuple: A tuple containing the API response and an HTTP status code.
+    """
+    if obj is isinstance(obj, instance):
+        return JsonResponse(BadRequestResponse(error_message).to_dict(), status=400)  # 400 Bad Request
+    return None

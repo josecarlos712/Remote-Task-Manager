@@ -1,8 +1,0 @@
-{
-  "hello_world": {
-    "name": "Hello World",
-    "description": "Sends a hello world message",
-    "args": [],
-    "handler": "hello_world"
-  }
-}

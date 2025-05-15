@@ -1,5 +1,5 @@
 from django.test import TestCase
-from .commands.commands_utils import get_command_list, load_commands_from_json
+from serverbot.bot.utils.commands_utils import get_command_list
 
 
 class MyTestCase(TestCase):
