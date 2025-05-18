@@ -27,8 +27,8 @@ class Configuration():
         self.load_config()
         self.load_specifications()
 
-        #self.check_files()
-        self.check_DB()
+        # self.check_files()
+        self.check_DB()  # Comment when doing 'magemigrations'
 
         self.logging.log(logging.INFO, "API Server started successfully.")
 
@@ -290,7 +290,8 @@ class Configuration():
                 return False, f"CheckFiles ERROR: Exception on os.makedirs - {e}"
             self.logging.log(logging.DEBUG, "CheckFiles OK")
         elif not os.path.isdir(downloads_folder):
-            self.logging.debug(f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'.")
+            self.logging.debug(
+                f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'.")
             return False, f"CheckFiles: There was a problem creating the downloads folder on '{downloads_folder}'."
 
         return True, "CheckFiles OK"
@@ -299,43 +300,63 @@ class Configuration():
         """Check for basic entrances on the database."""
         from ..models import Activity, User
 
-        # Check if User System exists
         try:
-            user = User.objects.get(username="System")
-            if user:
-                self.logging.debug(f"CheckDB: User System ({user}) exists.")
-        except User.DoesNotExist:
-            # If it doesn't exist, create it
+            # --- Check/Create System User using get_or_create ---
+            # get_or_create returns a tuple: (object, created_boolean)
+            # defaults dictionary provides values for the object if it needs to be created
             user, created = User.objects.get_or_create(
                 username="System",
                 defaults={
-                    "first_name": "System",
-                    "last_name": "System",
-                    "email": "system@localhost",
-                    "is_superuser": True,
-                    "is_staff": True,
+                    'first_name': "System",
+                    'last_name': "System",
+                    'email': "system@localhost",
+                    'is_superuser': True,
+                    'is_staff': True,
+                    'is_active': True,
+                    'password': "josecarlos",  # Set a default password
+                    # Add other default fields as necessary
                 }
             )
-            self.logging.debug(f"CheckDB: Created User System ({user}).")
+            if created:
+                self.logging.info(f"CheckDB: Created User System ({user}).")
+            else:
+                pass
+                #self.logging.debug(f"CheckDB: User System already exists.")
 
-        # Check if the Activity 0 exists
-        try:
-            activity = Activity.objects.get(id=0)
-            if activity:
-                self.logging.debug(f"CheckDB: Activity 0 ({activity}) exists.")
-        except Activity.DoesNotExist:
-            # If it doesn't exist, create it
-            activity, created = Activity.objects.get_or_create(
-                id=0,
-                defaults={
-                    "user": user,
-                    "name": "Default Activity",
-                    "description": "Default Activity",
-                    "date": "2023-01-01",
-                    "hour": "00:00",
-                }
-            )
-            self.logging.debug(f"CheckDB: Created Default Activity ({activity}).")
+        except Exception as e:
+            self.logging.error(f"CheckDB ERROR: Exception on getting or creating User System - {e}", exc_info=True)
+            return False, f"CheckDB ERROR: Exception on getting or creating User System - {e}"
+
+            # --- Check/Create Activity 0 using get_or_create ---
+            # Ensure the user object was successfully retrieved or created before proceeding
+        if user is None:
+            self.logging.error("CheckDB ERROR: System user is None after get_or_create.")
+            return False, "CheckDB ERROR: System user is None after get_or_create."
+        else:
+            try:
+                # Use pk=0 to specifically target the Activity with primary key 0
+                activity, created = Activity.objects.get_or_create(
+                    pk=0,  # Target the primary key with value 0
+                    defaults={
+                        'user': user,  # Link to the System user
+                        'title': "System Activity",
+                        'name': "System_Activity",
+                        'description': "System activity",
+                        # datetime field will use its default=timezone.now on creation
+                    }
+                )
+                if created:
+                    self.logging.info(f"CheckDB: Created Activity 0 ({activity}).")
+                else:
+                    pass
+                    #self.logging.debug(f"CheckDB: Activity 0 already exists.")
+
+                # If both checks/creations were successful, return True
+                return True, "CheckDB OK"
+
+            except Exception as e:
+                self.logging.error(f"CheckDB ERROR: Exception on getting or creating Activity 0 - {e}", exc_info=True)
+                return False, f"CheckDB ERROR: Exception on getting or creating Activity 0 - {e}"
 
     def __getitem__(self, key, default=None):
         """Retrieves a configuration value given the key."""

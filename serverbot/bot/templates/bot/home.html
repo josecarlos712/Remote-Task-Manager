@@ -6,22 +6,20 @@
 <!-- prettier-ignore-attribute -->
 <main>
   <div id="tab1" class="tab-content">{% include 'bot/component_activity.html' %}</div>
+  <!-- <div id="tab2" class="tab-content">{% include 'bot/component_program.html' %}</div>
+  <div id="tab3" class="tab-content">{% include 'bot/component_command.html' %}</div>
 
-  <div id="tab2" class="tab-content">
-    <div id="component_programs">{% include 'bot/component_program.html' %}</div>
-  </div>
-
-  <!-- Incluir dinámicamente los componentes adicionales -->
+  Incluir dinámicamente los componentes adicionales 
   {% include 'bot/dynamic_components/commands.html' %} {% for component in dynamic_components %}
   <div id="extra-container" class="tab-content">{% include 'bot/dynamic_components/'|add:component %}</div>
   {% endfor %}
-
-  <div id="tab3" class="tab-content">
+-->
+  <div id="tab4" class="tab-content">
     <h2>Configuration</h2>
     <p>Information about configuring the Telegram Bot Manager...</p>
   </div>
 
-  <div id="tab4" class="tab-content">
+  <div id="tab5" class="tab-content">
     <h2>About</h2>
     <p>Remote Task Manager v24.1023.01</p>
     <p>A compilation of utilities to manage your own PC using a Telegram bot to send commands.</p>

@@ -12,21 +12,23 @@ from . import urls
 import logging
 
 from .utils import APIResponse
-from .utils.commands_utils import update_commands_list
-from .utils.programs_utils import update_programs_list
+from .utils.commands_utils import *
+from .utils.programs_utils import *
+from .utils.activity_utils import *
+from .utils.messages_utils import *
 from .utils.APIResponse import (
     SuccessResponse,
     BadMethodErrorResponse,
     InternalErrorResponse,
     NotFoundResponse,
     ErrorResponse,
-    ForbiddenErrorResponse, ValidationErrorResponse, UnauthorizedResponse, check_None_API,
+    ForbiddenErrorResponse, ValidationErrorResponse, UnauthorizedResponse, check_None_API, BadRequestResponse,
 )
 from .models import Command, Client, UserSettings
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 
 from .utils.utils import check_None, send_client_get_request, send_client_post_request
 
@@ -34,35 +36,9 @@ from .utils.utils import check_None, send_client_get_request, send_client_post_r
 logger = logging.getLogger(__name__)
 
 
-# @csrf_protect
-# @require_POST
-# def api_data(request):
-#     _method = 'POST'
-#     # If the request is None, the function returns if the function is 'GET' or 'POST'
-#     if not request:
-#         return _method
-#
-#     if request.method == "POST":
-#         try:
-#             data: json = json.loads(request.body)
-#             # keyword = data.get("keyword")
-#
-#             # Buscar la función asociada al keyword en el diccionario
-#             api_function: APIFunction = api_functions.get(data['keyword'])
-#
-#             if api_function:
-#                 # Llamar a la función correspondiente
-#                 result = api_function.send_request()  # Ejecutar send_request() del objeto APIFunction
-#                 return JsonResponse(result)
-#             else:
-#                 return JsonResponse({"error": "Invalid keyword."}, status=400)
-#
-#         except json.JSONDecodeError:
-#             return JsonResponse({"error": "Invalid JSON."}, status=400)
-#     else:
-#         return JsonResponse({"error": "Method not allowed."}, status=405)
-
 # ---- Command API ----
+@login_required
+@csrf_protect
 @require_POST  # Only allows POST requests
 def api_update_commands_list(request):
     """
@@ -86,7 +62,9 @@ def api_update_commands_list(request):
     client_id = data.get('client_id')
 
     # Validate the presence of client_id
-    check_None_API(client_id, "api_update_commands_list() - Missing 'client_id' in request data.")
+    response, code = check_None_API(client_id, "api_update_commands_list() - Missing 'client_id' in request data.")
+    if code != 200:
+        return response
 
     # Retrieve the Client object
     logger.debug(f"api_update_commands_list() - Attempting to retrieve client with ID: {client_id}")
@@ -110,6 +88,9 @@ def api_update_commands_list(request):
 
     # --- Check User Allowance for the Client ---
     user = request.user  # Get the currently authenticated user
+    if not user:
+        logger.debug("api_update_commands_list() - User is not authenticated.")
+        return UnauthorizedResponse("User is not authenticated.").to_response()
 
     # Use the is_user_allowed method of the Client model
     if not client_obj.is_user_allowed(user):
@@ -178,25 +159,22 @@ def api_execute_command(request):
     kwargs = data.get('kwargs', {})  # Default to empty dict
 
     # Validate required fields in the incoming request
-    if not client_id:
-        logger.warning("api_command() - Missing 'client_id' in request data.")
-        api_response = ErrorResponse(message="Falta el ID del cliente.")
-        return JsonResponse(api_response.to_dict(), status=400)
-
-    if not command_id:
-        logger.warning("api_command() - Missing 'command_id' in request data.")
-        api_response = ErrorResponse(message="Falta el ID del comando.")
-        return JsonResponse(api_response.to_dict(), status=400)
+    expected_fields = ['client_id', 'command_id']
+    for field in expected_fields:
+        if field not in data:
+            logger.warning(f"api_command() - Missing '{field}' in request data.")
+            api_response = BadRequestResponse(message=f"api_command() - Missing '{field}' in request data.")
+            return JsonResponse(api_response.to_dict(), status=400)
 
     # Basic type checks for args and kwargs
     if not isinstance(args, list):
         logger.warning(f"api_command() - 'args' field is not a list: {args}")
-        api_response = ErrorResponse(message="'args' debe ser una lista.")
+        api_response = BadRequestResponse(message="'args' debe ser una lista.")
         return JsonResponse(api_response.to_dict(), status=400)
 
     if not isinstance(kwargs, dict):
         logger.warning(f"api_command() - 'kwargs' field is not a dictionary: {kwargs}")
-        api_response = ErrorResponse(message="'kwargs' debe ser un diccionario.")
+        api_response = BadRequestResponse(message="'kwargs' debe ser un diccionario.")
         return JsonResponse(api_response.to_dict(), status=400)
 
     # Retrieve the Client object
@@ -374,9 +352,9 @@ def api_update_program_list(request):
         return JsonResponse(response, status=200)
 
 
-@login_required # Requires the user to be logged in
-@csrf_protect # Requires a valid CSRF token for POST requests
-@require_POST # Only allows POST requests
+@login_required  # Requires the user to be logged in
+@csrf_protect  # Requires a valid CSRF token for POST requests
+@require_POST  # Only allows POST requests
 def refresh_processes_status(request):
     """
     API URL: api/program/status/refresh (or similar, based on your urls.py)
@@ -404,9 +382,9 @@ def refresh_processes_status(request):
     # Validate required fields in the incoming request
     if not client_id:
         logger.warning("refresh_processes_status() - Missing 'client_id' in request data.")
-        return ValidationErrorResponse("Falta el ID del cliente.").to_response()
+        return BadRequestResponse("Falta el ID del cliente.").to_response()
 
-
+    #
 
     # --- Update Program status in the database based on client response ---
     # Client response from 'api/program/status' shoul look like this:
@@ -415,7 +393,22 @@ def refresh_processes_status(request):
     #         "available": true
     #     }
     # }
-    update_programs_list(client_id, program_status_data)
+    # Send the GET request to the client application on the endpoint 'api/program/status' to get the programs status
+    programs_status, code = send_client_get_request(client_id, "api/program/status")
+    if code != 200:
+        logger.error(
+            f"refresh_processes_status() - Failed to retrieve program status from client {client_id}. {programs_status}")
+        return InternalErrorResponse(
+            f"Failed to retrieve program status from the client. {programs_status}").to_response()
+
+    # Update the program status in the database
+    response, code = update_programs_list(client_id, programs_status)
+    if code == 200:
+        logger.debug(f"refresh_processes_status() - Successfully updated program status for client {client_id}.")
+        return JsonResponse(response, status=200)
+    else:
+        logger.error(f"refresh_processes_status() - Failed to update program status for client {client_id}.")
+        return InternalErrorResponse("Failed to update program status.").to_response()
 
 
 # ---- User Registration and Authentication API ----
@@ -424,7 +417,8 @@ def refresh_processes_status(request):
 def api_register(request):
     """
         Handles user registration via API.
-        Receives JSON data, validates it, creates a new user, and logs them in.
+        Receives JSON data with 'username', 'email', 'password', and optional 'first_name' and 'last_name'.
+        Validates it, creates a new user, and logs them in.
         """
     if request.method == "POST":
         try:
@@ -533,6 +527,7 @@ def api_register(request):
 def api_logout(request):
     """
     Handles user logout via API and returns a JSON response.
+    If the user is logged in, it logs them out and returns a success message.
     """
     if request.user.is_authenticated:
         logout(request)
@@ -545,6 +540,11 @@ def api_logout(request):
 @csrf_protect
 @require_POST
 def api_login(request):
+    """
+    Handles user login via API.
+    Receives JSON data with 'username' and 'password'.
+    Validates the credentials, logs in the user and returns a JSON response.
+    """
     _method = 'POST'
     # If the request is None, the function returns if the function is 'GET' or 'POST'
     if not request:
@@ -583,33 +583,611 @@ def api_login(request):
                             status=405)  # 405 Method Not Allowed
 
 
-@require_POST
-def get_user_from_token(request):
+# ---- Activity API ----
+# Endpoint to get a list of every activity
+@require_GET
+@csrf_exempt
+def api_get_activity_list(request):
     """
-    Retrieves the user associated with the provided token from the JSON body.
-
-    Args:
-        request: The Django request object. It should contain a JSON body with a 'token' field.
-
-    Returns:
-        The User object if a valid token is provided, None otherwise.
+    API URL: api/activities/list
+    API endpoint to get the list of activities.
+    Does not require authentication or CSRF token.
     """
-    _method = 'POST'
-    # If the request is None, the function returns if the function is 'GET' or 'POST'
+    # This view only supports GET requests
+    _method = 'GET'
     if not request:
         return _method
 
-    try:
-        data = json.loads(request.body)
-        token_key = data.get('token')  # Assuming the token field is named "token"
+    if request.method == 'GET':
+        # Get the list of activities from the database
+        # Get the list of activities from the database
+        activities, code = get_activities()
+        if code != 200:
+            logger.error(f"get_activity_list() - Failed to retrieve activity list.")
+            return InternalErrorResponse("Failed to retrieve activity list.").to_response()
 
-        if token_key:
-            try:
-                token = Token.objects.get(key=token_key)
-                return token.user
-            except Token.DoesNotExist:
-                return None
-        else:
-            return None  # Token not provided in JSON
-    except json.JSONDecodeError:
-        return None  # Invalid JSON
+        # Convert the QuerySet of Activity objects into a list of dictionaries using to_dict()
+        activity_list_data = [activity.to_dict() for activity in activities]
+
+        # If the request was successful, return the list of activities
+        logger.debug(f"get_activity_list() - Successfully retrieved activity list: {activity_list_data}")
+        return SuccessResponse("Successfully retrieved activity list.", activity_list_data).to_response()  # 200 OK
+    else:
+        return BadMethodErrorResponse(method=request.method,
+                                      expected_method=_method).to_response()  # 405 Method Not Allowed
+
+
+# Endpoint to get an activity by its ID
+@require_POST
+@csrf_exempt
+def api_get_activity_by_id(request):
+    """
+    API URL: api/activities/
+    API endpoint to get a message by its ID.
+    Receives JSON data with 'activity_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the activity_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_activity_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_activity_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the activity_id from the JSON body
+        activity_id = data.get('activity_id')
+
+        # Validate the presence of activity_id
+        response, code = check_None_API(activity_id,
+                                        "get_activity_by_id() - Missing 'activity' in request data.")
+        if code != 200:
+            return response
+
+        # Get the activity from the database
+        activity, code = get_activity_by_id(activity_id)
+        if code != 200:
+            logger.error(f"get_activity_by_id() - Failed to retrieve activity with ID {activity_id}.")
+            return InternalErrorResponse(activity).to_response()
+        # Convert the Activity object into a dictionary using to_dict()
+        activity_data = activity.to_dict()
+        # If the request was successful, return the activity data
+        logger.debug(f"get_activity_by_id() - Successfully retrieved activity data: {activity_data}")
+        return SuccessResponse("Successfully retrieved activity data.", activity_data).to_response()
+
+
+# Endpoint to get a list of activities from a user
+@require_POST
+@csrf_exempt
+def api_get_activity_list_from_user(request):
+    """
+    API URL: api/activities/list/user
+    API endpoint to get the list of activities.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'user_id'.
+    """
+    # This view only supports GET requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the user from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_activity_list_from_user() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_activity_list_from_user() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the user from the JSON body
+        user_id = data.get('user_id')
+
+        # Validate the presence of user
+        response, code = check_None_API(user_id, "get_activity_list_from_user() - Missing 'user' in request data.")
+        if code != 200:
+            return response
+
+        # Get the list of activities from the database
+        activities, code = get_activities_from_user(user_id)
+        if code != 200:
+            logger.error(f"get_activity_list_from_user() - Failed to retrieve activities for user {user_id}.")
+            return InternalErrorResponse(activities).to_response()
+        # Convert the QuerySet of Activity objects into a list of dictionaries using to_dict()
+        activity_list_data = [activity.to_dict() for activity in activities]
+        # If the request was successful, return the list of activities
+        logger.debug(f"get_activity_list() - Successfully retrieved activity list: {activity_list_data}")
+        return SuccessResponse("Successfully retrieved activity list.", activity_list_data).to_response()  # 200 OK
+
+
+# Endpoint to create an activity
+@require_POST
+@csrf_protect
+@login_required 
+def api_create_activity(request):
+    """
+    API URL: api/activities/create
+    API endpoint to create a new activity.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'title' and 'description'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the activity data from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"create_activity() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("create_activity() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Verify the parameters
+        expected_fields = ['activity_title', 'activity_description']
+        for field in expected_fields:
+            if field not in data:
+                logger.warning(f"create_activity() - Missing '{field}' in request data.")
+                return BadRequestResponse(f"create_activity() - Missing '{field}' in request data.").to_response()
+
+        # Add to parameters variable the available fields in the request
+        parameters = {}
+        for key in data.keys():
+            if key in expected_fields:
+                parameters[key] = data[key]
+
+        parameters['user_id'] = request.user.id
+        # activity_name is the title in lowercase with spaces replaced by underscores
+        parameters['name'] = parameters['title'].lower().replace(" ", "_")
+
+        # Validate the presence of activity_title
+        response, code = check_None_API(parameters['title'],
+                                        "create_activity() - Missing 'activity_name' in request data.")
+        if code != 200:
+            return response
+
+        response, code = check_None_API(parameters['description'],
+                                        "create_activity() - Missing 'activity_description' in request data.")
+        if code != 200:
+            parameters['description'] = ""
+
+        # Create the activity in the database
+        activity, code = create_activity(parameters)
+        # Check if the code starts with 2xx
+        if code == 201:
+            logger.info(f"create_activity() - Activity '{activity}' created successfully.")
+            # Convert the Activity object into a dictionary using to_dict()
+            activity_data = activity.to_dict()
+            # If the request was successful, return the activity data
+            logger.debug(f"create_activity() - Successfully created activity data: {activity_data}")
+            return SuccessResponse("Successfully created activity data.", activity_data).to_response()
+        if code != 200:
+            logger.error(f"create_activity() - Failed to create activity with name {parameters['name']}.")
+            return InternalErrorResponse(activity).to_response()
+
+
+# Endpoint to update an activity given the id and the parameters
+@require_POST
+@csrf_protect
+@login_required 
+def api_update_activity(request):
+    """
+    API URL: api/activities/update
+    API endpoint to update an activity by its ID.
+    Receives JSON data with 'activity_id', 'activity_title', and 'activity_description'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the activity data from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"update_activity_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("update_activity_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Check if the activity_id is present in the request
+        activity_id = data.get('activity_id')
+        response, code = check_None_API(activity_id,
+                                        "update_activity_by_id() - Missing 'activity_id' in request data.")
+        if code != 200:
+            return response
+
+        # Optional fields to be updated
+        expected_fields = ['title', 'description']
+
+        # Add to parameters variable the available fields in the request
+        parameters = {}
+        for key in data.keys():
+            if key in expected_fields:
+                parameters[key] = data[key]
+
+        # Update the activity in the database
+        activity, code = update_activity(activity_id, parameters)
+        if code != 200:
+            logger.error(f"update_activity_by_id() - Failed to update activity with ID {activity_id}.")
+            return InternalErrorResponse(activity).to_response()
+        # Convert the Activity object into a dictionary using to_dict()
+        activity_data = activity.to_dict()
+        # If the request was successful, return the activity data
+        logger.debug(f"update_activity_by_id() - Successfully updated activity data: {activity_data}")
+        return SuccessResponse("Successfully updated activity data.", activity_data).to_response()
+
+
+# Endpoint to delete an activity given the id
+@require_POST
+@csrf_protect
+@login_required 
+def api_delete_activity(request):
+    """
+    API URL: api/activities/delete
+    API endpoint to delete an activity by its ID.
+    Receives JSON data with 'activity_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the activity_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"delete_activity_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("delete_activity_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the activity_id from the JSON body
+        activity_id = data.get('activity_id')
+
+        # Validate the presence of activity_id
+        response, code = check_None_API(activity_id,
+                                        "delete_activity_by_id() - Missing 'activity_id' in request data.")
+        if code != 200:
+            return response
+
+        # Delete the activity from the database
+        activity, code = delete_activity(activity_id)
+        if code != 200:
+            logger.error(f"delete_activity_by_id() - Failed to delete activity with ID {activity_id}.")
+            return InternalErrorResponse(activity).to_response()
+        # If the request was successful, return the activity data
+        logger.debug(f"delete_activity_by_id() - Successfully deleted activity with ID: {activity_id}")
+        return SuccessResponse(f"Successfully deleted activity with ID: {activity_id}").to_response()
+
+
+# ---- Message API ----
+# Endpoint to get a message from its ID
+@require_POST
+@csrf_exempt
+def api_get_message_by_id(request):
+    """
+    API URL: api/messages/
+    API endpoint to get a message by its ID.
+    Receives JSON data with 'message_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the message_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_message_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_message_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the message_id from the JSON body
+        message_id = data.get('message_id')
+
+        # Validate the presence of message_id
+        response, code = check_None_API(message_id,
+                                        "get_message_by_id() - Missing 'message' in request data.")
+        if code != 200:
+            return response
+
+        # Get the message from the database
+        message, code = get_message_by_id(message_id)
+        if code != 200:
+            logger.error(f"get_message_by_id() - Failed to retrieve message with ID {message_id}.")
+            return InternalErrorResponse(message).to_response()
+        # Convert the Message object into a dictionary using to_dict()
+        message_data = message.to_dict()
+        # If the request was successful, return the activity data
+        logger.debug(f"get_message_by_id() - Successfully retrieved activity data: {message_data}")
+        return SuccessResponse("Successfully retrieved activity data.", message_data).to_response()
+
+
+# Endpoint to get all the messages from a user
+@require_POST
+@csrf_exempt
+def api_get_message_list_from_user(request):
+    """
+    API URL: api/messages/list/user
+    API endpoint to get the list of messages.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'user_id'.
+    """
+    # This view only supports GET requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the user from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_message_list_from_user() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_message_list_from_user() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the user from the JSON body
+        user_id = data.get('user_id')
+
+        # Validate the presence of user
+        response, code = check_None_API(user_id, "get_message_list_from_user() - Missing 'user' in request data.")
+        if code != 200:
+            return response
+
+        # Get the list of messages from the database
+        messages, code = get_messages_from_user(user_id)
+        if code != 200:
+            if code == 404:  # No messages found for the user (get_messages_from_user returns 404 if no messages)
+                logger.info(
+                    f"get_message_list_from_user() - No messages found for user {user_id}. Returning empty list.")
+                # Return a SuccessResponse with an empty list in the 'data' field
+                api_response_data = SuccessResponse(f"No messages found for user {user_id}.",
+                                                    []).to_dict()
+                return JsonResponse(api_response_data, status=200)  # Return 200 OK with empty data
+            else:  # Other errors (e.g., database error from get_messages_from_user)
+                logger.error(
+                    f"get_message_list_from_user() - Failed to retrieve messages for user {user_id}.")
+                api_response = InternalErrorResponse("Ocurrió un error interno al obtener los mensajes.")
+                return JsonResponse(api_response.to_dict(), status=500)  # 500 Internal Server Error
+
+        # Convert the QuerySet of Message objects into a list of dictionaries using to_dict()
+        message_list_data = [message.to_dict() for message in messages]
+
+        # If the request was successful, return the list of messages
+        logger.debug(f"get_message_list() - Successfully retrieved message list: {message_list_data}")
+        return SuccessResponse("Successfully retrieved message list.", message_list_data).to_response()  # 200 OK
+    else:
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'},
+                            status=405)  # 405 Method Not Allowed
+
+
+# Endpoint to get all the messages from an activity
+@require_POST
+@csrf_exempt
+def api_get_message_list_from_activity(request):
+    """
+    API URL: api/messages/list/activty
+    API endpoint to get the list of messages.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'activity_id'.
+    """
+    # This view only supports GET requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the activity from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_message_list_from_activity() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_message_list_from_activity() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the activity from the JSON body
+        activity_id = data.get('activity_id')
+
+        # Validate the presence of activity_id
+        response, code = check_None_API(activity_id,
+                                        "get_message_list_from_activity() - Missing 'activity' in request data.")
+        if code != 200:
+            return response
+
+        # Get the list of messages from the database
+        messages, code = get_messages_from_activity(activity_id)
+        if code != 200:
+            if code == 404:
+                # No messages found for the activity (get_messages_from_activity returns 404 if no messages)
+                logger.info(
+                    f"get_message_list_from_activity() - No messages found for activity {activity_id}. Returning empty list.")
+                # Return a SuccessResponse with an empty list in the 'data' field
+                return SuccessResponse(messages, []).to_response()
+            else:  # Other errors (e.g., database error from get_messages_from_activity)
+                logger.error(
+                    f"get_message_list_from_activity() - Failed to retrieve messages for activity {activity_id}.")
+                return InternalErrorResponse("Ocurrió un error interno al obtener los mensajes.").to_response()
+        # Convert the QuerySet of Message objects into a list of dictionaries using to_dict()
+        message_list_data = [message.to_dict() for message in messages]
+        # If the request was successful, return the list of messages
+        logger.debug(f"get_message_list() - Successfully retrieved message list: {message_list_data}")
+        return SuccessResponse("Successfully retrieved message list.", message_list_data).to_response()  # 200 OK
+
+
+@require_GET
+@csrf_exempt
+def api_get_message_list(request):
+    """
+    API URL: api/messages/list
+    API endpoint to get the list of messages.
+    """
+    # This view only supports GET requests
+    _method = 'GET'
+    if not request:
+        return _method
+    if request.method == 'GET':
+        # Get the list of messages from the database
+        messages, code = get_messages()
+
+        if code == 404:
+            # No messages found (get_messages returns 404 if no messages)
+            logger.info("get_message_list() - No messages found. Returning empty list.")
+            # Return a SuccessResponse with an empty list in the 'data' field
+            return SuccessResponse(messages, []).to_response()
+        elif code != 200:
+            logger.error(f"get_message_list() - Failed to retrieve message list.")
+            return InternalErrorResponse(messages).to_response()
+
+        # Convert the QuerySet of Message objects into a list of dictionaries using to_dict()
+        message_list_data = [message.to_dict() for message in messages]
+
+        # If the request was successful, return the list of messages
+        logger.debug(f"get_message_list() - Successfully retrieved message list: {message_list_data}")
+        return SuccessResponse("Successfully retrieved message list.", message_list_data).to_response()
+
+    return None
+
+
+# Endpoint to create a message
+@require_POST
+@csrf_protect
+@login_required
+def api_create_message(request):
+    """
+    API URL: api/messages/create
+    API endpoint to create a new message.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'message_title' and 'message_description'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the message data from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"create_message() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("create_message() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the message data from the JSON body
+        expected_fields = ['body', 'activity_id']
+        for key in expected_fields:
+            if key not in data:
+                logger.error(f"create_message() - Missing '{key}' in request data.")
+                return BadRequestResponse(f"Missing '{key}' in request data.").to_response()
+
+        # Create parameters variable with the available fields in the request
+        parameters = {}
+        for key in data.keys():
+            if key in expected_fields:
+                parameters[key] = data[key]
+        #parameters['user_id'] = 3 # Faking the user for testing purposes
+        parameters['user_id'] = request.user.id  # TODO Get the currently authenticated user
+
+        # Create the message in the database
+        message, code = create_message(parameters)
+        if code != 201:
+            logger.error(f"create_message() - Failed to create message.")
+            return InternalErrorResponse(message).to_response()
+        # Convert datetime fields to the local time zone
+        message.created = timezone.localtime(message.created)
+        message.updated = timezone.localtime(message.updated)
+        # Convert the Message object into a dictionary using to_dict()
+        message_data = message.to_dict()
+        # If the request was successful, return the message data
+        logger.debug(f"create_message() - Successfully created message data: {message_data}")
+        return SuccessResponse("Successfully created message data.", message_data).to_response()
+
+
+# Endpoint to update a message given the id and the parameters
+@require_POST
+@csrf_protect
+@login_required 
+def api_update_message(request):
+    """
+    API URL: api/messages/update
+    API endpoint to update a message by its ID.
+    Receives JSON data with 'message_id', 'message_title', and 'message_description'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the message data from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"update_message_by_id() - Received data: {data}")
+            # Get the expected fields
+            expected_fields = ['message_id', 'body']
+            # Check if the message_id is present in the request
+            for key in expected_fields:
+                if key not in data:
+                    logger.error(f"update_message_by_id() - Missing '{key}' in request data.")
+                    return BadRequestResponse(f"Missing '{key}' in request data.").to_response()
+            # Create parameters variable with the available fields in the request
+            parameters = {}
+            for key in data.keys():
+                if key in expected_fields:
+                    parameters[key] = data[key]
+            # Update the message in the database
+            message, code = update_message(parameters)
+            if code != 200:
+                logger.error(f"update_message_by_id() - Failed to update message with ID {parameters['message_id']}.")
+                return BadRequestResponse(message).to_response()
+            # Convert the Message object into a dictionary using to_dict()
+            message_data = message.to_dict()
+            # If the request was successful, return the message data
+            logger.debug(f"update_message_by_id() - Successfully updated message data: {message_data}")
+            return SuccessResponse("Successfully updated message data.", message_data).to_response()
+
+        except json.JSONDecodeError:
+            logger.error("update_message_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+
+# Endpoint to delete a message given the id
+@require_POST
+@csrf_protect
+@login_required 
+def api_delete_message(request):
+    """
+    API URL: api/messages/delete
+    API endpoint to delete a message by its ID.
+    Receives JSON data with 'message_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the message_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"delete_message_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("delete_message_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the message_id from the JSON body
+        message_id = data.get('message_id')
+
+        # Validate the presence of message_id
+        response, code = check_None_API(message_id,
+                                        "delete_message_by_id() - Missing 'message' in request data.")
+        if code != 200:
+            return response
+
+        # Delete the message from the database
+        message, code = delete_message_by_id(message_id)
+        if code != 200:
+            logger.error(f"delete_message_by_id() - Failed to delete message with ID {message_id}.")
+            return InternalErrorResponse(message).to_response()
+        logger.debug(f"delete_message_by_id() - Successfully deleted message with ID: {message_id}")
+        return SuccessResponse(f"Successfully deleted message with ID: {message_id}").to_response()

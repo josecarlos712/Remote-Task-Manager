@@ -1,231 +1,380 @@
-{% extends 'main.html' %} 
-{% block title %} {{activity.name}} {% endblock %} 
-{% block baseblock %}
-<div class="vertical-container">
-    <div class="activity-container">
-        <div class="activity-header">
-            <h1 class="activity-title">{{activity.name}}</h1>
-            <p class="activity-meta">Publicado por 
-                {% if activity.user %}
-          {{ activity.user.username }}
-      {% else %}
-          [eliminado]
-      {% endif %} 
-      el {{ activity.date|date:"d-m-Y" }}</span>
-      {% if activity.hour %}a las {{ activity.hour|time:"H:i:s" }}{% endif %}</span></p>
-        </div>
-        <div class="activity-body">
-            {{ activity.description }}
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-<!--
-<style>
-        .main-container {
-            max-width: 60%;
-            width: 100%;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .activity-meta {
-            font-size: 0.9em;
-            color: #777;
-            margin-bottom: 15px;
-        }
-
-        .activity-description {
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-
-        .new-message-area {
-            margin-bottom: 20px;
-        }
-
-        .new-message-area textarea {
-            width: calc(100% - 12px);
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 1em;
-            min-height: 80px;
-        }
-
-        .new-message-area button {
-            padding: 10px 15px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
-            margin-top: 5px;
-        }
-
-        .new-message-area button:hover {
-            background-color: #0056b3;
-        }
-
-        .chat-history {
-            margin-top: 20px;
-        }
-
-        .chat-message {
-            border: 1px solid #eee;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            background-color: white;
-            font-size: 0.95em;
-        }
-
-        .message-header {
-            display: flex;
-            align-items: baseline;
-            margin-bottom: 5px;
-        }
-
-        .message-header strong {
-            font-weight: bold;
-            color: #555;
-            margin-right: 10px;
-        }
-
-        .message-header span {
-            font-size: 0.8em;
-            color: #999;
-        }
-
-        .message-content {
-            line-height: 1.4;
-        }
-
-        .message-actions {
-            margin-top: 5px;
-            font-size: 0.8em;
-            color: #777;
-        }
-
-        .like-button {
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-		.attached-image:hover {
-			cursor: pointer;
-			transform: scale(1.05);
-		}
-    </style>
-
+{% extends 'main.html' %} {% block title %}{{ activity.name }}{% endblock %} {% block baseblock %}
 <div class="main-container">
-        <h1>Plan para Viaje Familiar a la Playa en Verano</h1>
-        <p class="activity-meta">Creado por José Carlos el 2 de Abril de 2025</p>
+  <h1>{{ activity.name }}</h1>
+  <p class="activity-meta">Creado por {{ activity.user_name }} <span class="date-ago" data-date="{{ activity.created }}">{{ activity.created|date:"d M Y H:i" }}</span></p>
+  <div class="activity-description">
+    <p>{{ activity.description }}</p>
+    <ul>
+      {% for item in activity.details %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    <p>{{ activity.additional_info }}</p>
+  </div>
 
-        <div class="activity-description">
-            <p>¡Hola a todos! He empezado a organizar nuestro viaje familiar a la playa para este verano. La idea es ir a un destino con buen clima, playas bonitas y actividades para todas las edades. He estado mirando algunas opciones y me gustaría que todos dieran su opinión y sugerencias.</p>
-            <ul>
-                <li>**Posibles Destinos:** Costa Brava, Algarve (Portugal), Islas Canarias.</li>
-                <li>**Duración Estimada:** 7-10 días durante el mes de Julio.</li>
-                <li>**Alojamiento:** Estoy pensando en alquilar una casa o apartamento con piscina para mayor comodidad.</li>
-                <li>**Actividades:** Relajarse en la playa, deportes acuáticos (snorkel, kayak), visitar pueblos cercanos, alguna excursión familiar.</li>
-            </ul>
-            <p>Por favor, dejen sus comentarios y preferencias en el chat de abajo. ¡Estoy emocionado de planear este viaje con todos vosotros!</p>
-        </div>
+  <hr />
 
-        <hr>
-
-        <div class="new-message-area">
-            <h3>Publicar un nuevo mensaje</h3>
-            <textarea placeholder="Escribe tu mensaje aquí..."></textarea>
-            <button>Publicar</button>
-        </div>
-
-        <div class="chat-history">
-            <h3>Histórico de Chat</h3>
-
-            <div class="chat-message">
-                <div class="message-header">
-                    <strong>Mamá</strong>
-                    <span>2 de Abril de 2025 a las 18:35</span>
-                </div>
-                <div class="message-content">
-                    ¡Qué buena idea, cariño! A mí me encantaría ir a las Islas Canarias, siempre he querido visitar Tenerife. ¡Las playas son espectaculares!
-                </div>
-                <div class="message-actions">
-                    Me gusta: <span class="like-count">2</span> <span class="like-button">❤️</span>
-                </div>
-            </div>
-
-            <div class="chat-message">
-                <div class="message-header">
-                    <strong>Papá</strong>
-                    <span>2 de Abril de 2025 a las 18:40</span>
-                </div>
-                <div class="message-content">
-                    El Algarve suena interesante, he oído que tiene paisajes muy bonitos y la comida es genial. ¡Y si podemos jugar al golf, mejor!
-                </div>
-                <div class="message-actions">
-                    Me gusta: <span class="like-count">1</span> <span class="like-button">👍</span>
-                </div>
-            </div>
-
-            <div class="chat-message">
-                <div class="message-header">
-                    <strong>Sofía (Hermana)</strong>
-                    <span>2 de Abril de 2025 a las 18:45</span>
-                </div>
-                <div class="message-content">
-                    ¡Yo voto por la Costa Brava! Me encantan las calas y seguro que hay muchas actividades acuáticas divertidas. ¿Podríamos hacer alguna excursión en barco?
-                </div>
-                <div class="message-actions">
-                    Me gusta: <span class="like-count">3</span> <span class="like-button">😊</span>
-                </div>
-            </div>
-
-            <div class="chat-message">
-                <div class="message-header">
-                    <strong>Abuela Elena</strong>
-                    <span>2 de Abril de 2025 a las 18:50</span>
-                </div>
-                <div class="message-content">
-                    Mientras haya buena compañía y un sitio tranquilo para tomar el sol, ¡yo estoy feliz! 😊
-                </div>
-                <div class="message-actions">
-                    Me gusta: <span class="like-count">4</span> <span class="like-button">👵</span>
-                </div>
-            </div>
-
-            <div class="chat-message">
-                <div class="message-header">
-                    <strong>Tío Luis</strong>
-                    <span>2 de Abril de 2025 a las 18:55</span>
-                </div>
-                <div class="message-content">
-                    <p>Si vais al Algarve, no os perdáis la cueva de Benagil. ¡Es espectacular!</p>
-                    <a><img class="attached-image" id="attached-image" src="file:///C:/Users/josec/Downloads/foto.png " alt="Cueva de Benagil" width="20%"><a/>
-                </div>
-                <div class="message-actions">
-                    Me gusta: <span class="like-count">2</span> <span class="like-button">👍</span>
-                </div>
-            </div>
-        </div>
+  <div class="new-message-area">
+    <h3>Publicar un nuevo mensaje</h3>
+    <form method="post" id="messageForm">
+      {% csrf_token %}
+      <input type="hidden" name="activity_id" value="{{ activity.id }}" />
+      <textarea name="message" placeholder="Escribe tu mensaje aquí..." required></textarea>
+      <button type="submit">Publicar</button>
+    </form>
+  </div>
+  <div class="chat-history">
+    <h3>Histórico de Chat</h3>
+    {% for message in messages %}
+    <div class="chat-message">
+      <div class="message-header">
+        <strong>{{ message.user_username|default:"Unknown User" }}</strong>
+        <span class="date-ago" data-date="{{ message.created }}">{{ message.created|date:"d M Y H:i" }}</span>
+      </div>
+      <div class="message-content">
+        <p>{{ message.body }}</p>
+        {% if message.image %}
+        <a><img id="message-image-{{ forloop.counter }}" src="{{ message.image.url }}" alt="Imagen" width="20%" /></a>
+        {% endif %}
+      </div>
+      <div class="message-actions">Me gusta: <span class="like-count">{{ message.likes }}</span> <span class="like-button">❤️</span></div>
     </div>
-	<script>
-    const benagilImage = document.getElementById('benagil-image');
+    {% empty %}
+    <p>No hay mensajes aún.</p>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  document.getElementById("messageForm").addEventListener("submit", function (event) {
+    event.preventDefault(); // Prevent the default form submission
 
-    benagilImage.addEventListener('click', function() {
-        if (this.style.width === '50%') {
-            this.style.width = '20%';
+    const activityId = parseInt(document.querySelector('input[name="activity_id"]').value, 10);
+    const message = document.querySelector('textarea[name="message"]').value;
+
+    const content = {
+      activity_id: activityId,
+      body: message,
+    };
+
+    sendAjaxPostRequestJson("/api/messages/create", content)
+      .then(([success, response]) => {
+        if (success) {
+          console.log("Message sent successfully:", response);
+          // Optionally, clear the form or update the UI
+          document.getElementById("messageForm").reset();
         } else {
-            this.style.width = '50%';
+          console.error("Error sending message:", response);
         }
+      })
+      .catch((error) => {
+        console.error("AJAX request failed:", error);
+      });
+  });
+
+  document.querySelectorAll('[id^="message-image-"]').forEach((image) => {
+    image.addEventListener("click", function () {
+      if (this.style.width === "50%") {
+        this.style.width = "20%";
+      } else {
+        this.style.width = "50%";
+      }
     });
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const messageDates = document.querySelectorAll(".date-ago");
+    messageDates.forEach((span) => {
+      const rawDate = span.getAttribute("data-date");
+      //console.log("Raw date:", rawDate);
+      span.textContent = timeAgo(rawDate);
+    });
+  });
+
+  const benagilImage = document.getElementById("benagil-image");
+
+  if (benagilImage) {
+    benagilImage.addEventListener("load", function () {
+      this.style.width = "20%"; // Set initial width
+    });
+    benagilImage.addEventListener("click", function () {
+      if (this.style.width === "50%") {
+        this.style.width = "20%";
+      } else {
+        this.style.width = "50%";
+      }
+    });
+  }
+
+  function timeAgo(date) {
+    const now = Date.now(); // Current time in milliseconds
+    const timeDifference = now - new Date(date);
+
+    const days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+    const timeAgoParts = [];
+    console.log("Time difference:", now, " - " , new Date(date) , " = ", timeDifference, "ms");
+
+    if (days > 0) {
+      timeAgoParts.push(`${days} ${days === 1 ? "día" : "días"}`);
+    }
+    if (hours > 0) {
+      timeAgoParts.push(`${hours} ${hours === 1 ? "hora" : "horas"}`);
+    }
+    if (minutes > 0) {
+      timeAgoParts.push(`${minutes} ${minutes === 1 ? "minuto" : "minutos"}`);
+    }
+    if (seconds > 0 && timeAgoParts.length === 0) {
+      timeAgoParts.push(`${seconds} ${seconds === 1 ? "segundo" : "segundos"}`);
+    }
+
+    if (timeAgoParts.length > 0) {
+      if (timeAgoParts.length > 1) {
+        return `hace ${timeAgoParts.slice(0, -1).join(", ")} y ${timeAgoParts[timeAgoParts.length - 1]}`;
+      } else {
+        return `hace ${timeAgoParts[0]}`;
+      }
+    } else {
+      return "justo ahora";
+    }
+  }
 </script>
--->
+<style>
+  /* Define CSS Variables for colors */
+  :root {
+    --color-text-inv: black; /* Light blue */
+    --color-text: white;
+    --color-text-body: #dbdbdb;
+    --color-background: #0f0f0f; /* Green */
+    --color-background-container: #303030; /* Dark gray */
+    --color-foregroud: #ccc; /* Light gray */
+    --color-error: red;
+    --color-success: #bbffb6;
+  }
+
+  /* Basic styling for the main container */
+  .main-container {
+    max-width: 800px; /* Adjust max-width based on typical content width */
+    width: 95%; /* Use a percentage for better responsiveness */
+    margin: 20px auto; /* Centers the container on the page and adds vertical margin */
+    padding: 20px; /* Adds padding inside the container */
+    border: 1px solid var(--color-foregroud); /* Use color variable for border */
+    border-radius: 8px; /* Rounds the corners */
+    background-color: var(--color-background-container); /* Use color variable for background */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* More subtle shadow */
+    font-family: sans-serif; /* Use a common sans-serif font */
+    color: var(--color-text-body); /* Default text color for container */
+  }
+
+  /* Styling for the main activity title */
+  .main-container h1 {
+    color: var(--color-text); /* Use color variable for the title */
+    margin-top: 0; /* Remove default top margin */
+    margin-bottom: 10px; /* Space below the title */
+    font-size: 1.8em; /* Adjust font size */
+  }
+
+  /* Styling for activity metadata (user, date) */
+  .activity-meta {
+    font-size: 0.9em; /* Smaller font size */
+    color: var(--color-text-body); /* Use color variable */
+    margin-bottom: 20px; /* Space below the meta line */
+    border-bottom: 1px solid var(--color-foregroud); /* Use color variable for subtle line below meta */
+    padding-bottom: 15px; /* Padding below text and above line */
+  }
+
+  /* Styling for the main activity description area */
+  .activity-description {
+    margin-bottom: 25px; /* Space below the description */
+    line-height: 1.6; /* Increases line spacing for readability */
+    color: var(--color-text-body); /* Use color variable */
+  }
+
+  /* Styling for list within description */
+  .activity-description ul {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding-left: 20px;
+  }
+
+  .activity-description li {
+    margin-bottom: 8px;
+  }
+
+  /* Styling for the horizontal rule */
+  hr {
+    border: 0; /* Removes default border */
+    height: 1px; /* Sets the height of the rule */
+    background: var(--color-foregroud); /* Use color variable for grey background color */
+    margin: 30px 0; /* Adds space above and below the rule */
+  }
+
+  /* Container for the new message input area */
+  .new-message-area {
+    margin-bottom: 20px; /* Space below the input area */
+  }
+
+  .new-message-area h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--color-text); /* Use color variable for heading color */
+    font-size: 1.2em;
+  }
+
+  /* Styling for the textarea within the new message area */
+  .new-message-area textarea {
+    width: 100%; /* Take full width */
+    padding: 10px; /* Increased padding */
+    border: 1px solid var(--color-foregroud); /* Use color variable for border color */
+    border-radius: 4px; /* Rounds corners */
+    box-sizing: border-box; /* Includes padding and border in the element's total width and height */
+    font-size: 1em; /* Standard font size */
+    min-height: 100px; /* Increased minimum height */
+    resize: vertical; /* Allows only vertical resizing */
+    margin-bottom: 10px; /* Space below textarea */
+    background-color: var(--color-background); /* Use color variable for background */
+    color: var(--color-text-body); /* Use color variable for text */
+  }
+
+  /* Styling for the submit button within the new message area */
+  .new-message-area button {
+    display: inline-block; /* Ensure button is treated as a block for margin */
+    padding: 10px 20px; /* Padding inside the button */
+    background-color: #007bff; /* Primary blue color (kept as no variable provided) */
+    color: white; /* White text color (kept as no variable provided) */
+    border: none; /* Removes default border */
+    border-radius: 4px; /* Rounds corners */
+    cursor: pointer; /* Changes cursor to pointer on hover */
+    font-size: 1em; /* Standard font size */
+    transition: background-color 0.2s ease; /* Smooth transition for hover */
+  }
+
+  /* Hover effect for the button */
+  .new-message-area button:hover {
+    background-color: #0056b3; /* Darker blue on hover (kept) */
+  }
+
+  /* Container for the chat history section */
+  .chat-history {
+    margin-top: 30px; /* Increased space above the chat history */
+  }
+
+  .chat-history h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--color-text); /* Use color variable for heading color */
+    font-size: 1.2em;
+  }
+
+  /* Styling for individual chat messages */
+  .chat-message {
+    border: 1px solid var(--color-foregroud); /* Use color variable for subtle border */
+    padding: 15px; /* Increased padding */
+    margin-bottom: 15px; /* Increased space below each message */
+    border-radius: 6px; /* Slightly larger rounded corners */
+    background-color: var(--color-background); /* Use color variable for background */
+    font-size: 0.95em; /* Slightly smaller font than default */
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05); /* Very subtle shadow */
+    color: var(--color-text-body); /* Default text color for message */
+    text-align: left; /* Align the text to the left */
+  }
+
+  /* Styling for the message header (user and date) */
+  .message-header {
+    display: flex; /* Uses flexbox for layout */
+    align-items: baseline; /* Aligns items along the baseline */
+    margin-bottom: 8px; /* Increased space below the header */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  }
+
+  /* Styling for the username in the message header */
+  .message-header strong {
+    font-weight: bold; /* Bold font */
+    color: var(--color-text); /* Use color variable for username */
+    margin-right: 10px; /* Space after the username */
+    font-size: 1em; /* Ensure username is not too small */
+  }
+
+  /* Styling for the message date/time in the header */
+  .message-header span {
+    font-size: 0.85em; /* Slightly larger font size */
+    color: var(--color-text-body); /* Use color variable */
+  }
+
+  /* Styling for the message content (paragraph) */
+  .message-content {
+    line-height: 1.5; /* Increases line spacing */
+    color: var(--color-text-body); /* Use color variable for content */
+    word-wrap: break-word; /* Ensure long words break */
+  }
+
+  /* Styling for images within message content */
+  .message-content img {
+    max-width: 100%; /* Ensure images don't overflow their container */
+    height: auto; /* Maintain aspect ratio */
+    margin-top: 10px; /* Space above the image */
+    border-radius: 4px; /* Rounded corners for images */
+  }
+
+  /* Container for message actions (likes, etc.) */
+  .message-actions {
+    margin-top: 10px; /* Increased space above the actions */
+    font-size: 0.85em; /* Slightly larger font size */
+    color: var(--color-text-body); /* Use color variable */
+    display: flex; /* Use flexbox for layout */
+    align-items: center; /* Vertically align items */
+  }
+
+  /* Styling for the like count */
+  .message-actions .like-count {
+    margin-right: 5px; /* Space after the like count */
+    font-weight: bold; /* Make like count bold */
+  }
+
+  /* Styling for the like button (cursor change) */
+  .message-actions .like-button {
+    cursor: pointer; /* Changes cursor to pointer on hover */
+    margin-left: 0; /* Remove margin-left, it's part of the flex container now */
+    color: #dc3545; /* Red heart color (kept) */
+    transition: transform 0.1s ease; /* Subtle animation on click/hover */
+  }
+
+  .message-actions .like-button:hover {
+    transform: scale(1.1); /* Slightly enlarge heart on hover */
+  }
+
+  /* Styling for the benagil image (cursor change) - Assuming this is an image within your messages */
+  #benagil-image {
+    cursor: pointer; /* Changes cursor to pointer on hover */
+  }
+
+  /* Styling for the message date span to align it to the right in the header */
+  .message-header span.message-date {
+    margin-left: auto; /* Pushes the date to the right in a flex container */
+  }
+
+  /* Optional: Media query for smaller screens */
+  @media (max-width: 768px) {
+    .main-container {
+      max-width: 95%; /* Increase max-width on smaller screens */
+      padding: 15px;
+    }
+
+    .message-header {
+      flex-direction: column; /* Stack user and date vertically on small screens */
+      align-items: flex-start; /* Align items to the start */
+    }
+
+    .message-header strong {
+      margin-right: 0; /* Remove right margin */
+      margin-bottom: 5px; /* Add space below username */
+    }
+
+    .message-header span.message-date {
+      margin-left: 0; /* Remove auto margin */
+    }
+  }
+</style>
+{% endblock %}

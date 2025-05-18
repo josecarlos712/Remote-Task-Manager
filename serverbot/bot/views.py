@@ -9,6 +9,7 @@ from django.http import HttpResponse, Http404, JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime, now
 from django.views.decorators.http import require_POST
+from .utils import activity_utils, programs_utils, messages_utils, user_utils, commands_utils
 
 import logging
 from .models import *
@@ -69,18 +70,23 @@ def error_page_view(request, error_message=None):
 
 
 def activity_page(request, pk):
-    activity = Activity.objects.get(id=pk)
+    pk = int(pk)
+    activity, code = activity_utils.get_activity_by_id(pk)
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Activity not found. Error: {activity}")
+    # Convert the activity to a dictionary
+    activity_dict = activity.to_dict()
 
-    context = {'activity': activity}
+    messages, code = messages_utils.get_messages_from_activity(pk)
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Messages not found. Error: {messages}")
+    # Convert the messages to a list of dictionaries
+    messages_list = [message.to_dict() for message in messages]
+
+    context = {'activity': activity_dict, 'messages': messages_list}
     return render(request, 'bot/activity.html', context)
-
-
-def room_page(request, pk):
-    room = Room.objects.get(id=pk)
-    room_messages = room.message_set.all()
-
-    context = {'room': room, 'room_messages': room_messages}
-    return render(request, 'bot/room.html', context)
 
 
 def cooking(request):
@@ -124,25 +130,8 @@ def commponent_commands_view(request):
     Retrieves all Command objects from the database and renders the
     component_command.html template with the commands in the context.
     """
-    try:
-        # Get all Command objects from the database
-        commands = Command.objects.all()
-
-        # Prepare the context dictionary
-        context = {
-            'commands': commands
-        }
-
-        # Render the template with the commands in the context
-        return render(request, 'bot/component_command.html', context)
-
-    except Exception as e:
-        # TODO: Implement more specific error handling if needed (e.g., Command model not found)
-        print(f"An error occurred while fetching commands: {e}") # Log the error for debugging
-        # You might want to render an error template or return an error response
-        # For now, we'll just print the error and render an empty template or similar
-        # Returning an empty context might be acceptable if the template handles empty lists
-        return render(request, 'bot/component_command.html', {'commands': []}) # Render with empty list on error
+    # Get all Command objects from the database
+    commands = commands_utils.get
 
 
 def about_view(request):

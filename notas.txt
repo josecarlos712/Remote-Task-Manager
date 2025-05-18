@@ -11,21 +11,21 @@ Programas
  O API. Actualizar lista de programas parcialmente. Esta funcion no crea ningun progrma nuevos, sirve para actualizar estados de programas existentes.
 
 Actividades (unicamente para el servidor)
- - API. Crear actividad. (id_usuario, parametros)
- - API. Actualizar/modificar actividad. (id_actividad, id_usuario, parametros)
- - API. Eliminar actividad. (id_actividad, id_usuario)
- - API. Obtener actividad. (id_actividad)
- - API. Obtener lista de actividades.
+ O API. Crear actividad. (id_usuario, parametros)
+ O API. Actualizar/modificar actividad. (id_actividad, id_usuario, parametros)
+ O API. Eliminar actividad. (id_actividad, id_usuario)
+ O API. Obtener actividad. (id_actividad)
+ O API. Obtener lista de actividades.
 
 Mensajes (unicamente para el servidor)
- - API. Crear mensaje. (id_usuario, parametros)
- - API. Actualizar/modificar mensaje. (id_mensaje, id_usuario, parametros)
- - API. Eliminar mensaje. (id_mensaje, id_usuario)
- - API. Obtener mensaje. (id_mensaje)
- - API. Obtener lista de mensajes.
+ O API. Crear mensaje. (id_usuario, parametros)
+ O API. Actualizar/modificar mensaje. (id_mensaje, id_usuario, parametros)
+ O API. Eliminar mensaje. (id_mensaje, id_usuario)
+ O API. Obtener mensaje. (id_mensaje)
+ O API. Obtener lista de mensajes.
 
 Configuracion (UserSettings)
- - API. Crear configuracion. (id_usuario, vacio)
+ O API. Crear configuracion. (id_usuario, vacio) (Se crea cuando se crea el usuario)
  - API. Actualizar/modificar configuracion. (id_configuracion, id_usuario, parametros a modificar)
  - La configuracion solo se elimina en cascada si se elimina el usuario.
     { (BD de configuracion)

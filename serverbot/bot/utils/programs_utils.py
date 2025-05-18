@@ -45,7 +45,8 @@ def refresh_processes_status(client_id: int):
         logger.error(
             f"refresh_processes_status() - Failed to get program status from client {client_id}. Client status code: {client_status_code}")
         # send_client_get_request already logs specific errors (timeout, connection, http, json)
-        return InternalErrorResponse(f"Client responded with status {client_status_code}").to_response(), client_status_code
+        return InternalErrorResponse(
+            f"Client responded with status {client_status_code}").to_response(), client_status_code
 
     # Assuming the client's response is a list of program status dictionaries
     if not isinstance(program_status_data, dict):
@@ -110,7 +111,7 @@ def sync_programs_from_json(json_file_path):
     return messages
 
 
-def sync_program_from_dict(client_obj: Client, program_data: dict):
+def sync_program_from_dict(client_obj: Client, program_data: dict) -> tuple[dict, int] | tuple[str, int]:
     """
     Synchronizes a single program entry from a dictionary with the database,
     linking it to a specific client.
@@ -118,17 +119,15 @@ def sync_program_from_dict(client_obj: Client, program_data: dict):
     Uses the client and the program's 'name' as the unique identifier for lookup.
 
     Args:
-        client_obj (Client): The Client object this program belongs to.
-        program_data (dict): A dictionary containing the program's details
-                             (expected keys: 'name', 'title', 'description', 'available').
+
 
     Returns:
         Program or None: The created or updated Program object on success, None on failure.
     """
     if check_instance(client_obj, Client,
-                      f"sync_program_from_dict() - Invalid client_obj provided: {client_obj}"): return None
+                      f"sync_program_from_dict() - Invalid client_obj provided: {client_obj}"): return f"sync_program_from_dict() - Invalid client_obj provided: {client_obj}", 400
     if check_instance(program_data, dict,
-                      f"sync_program_from_dict() - Invalid program_data format provided. Expected a dictionary, got {type(program_data)}."): return None
+                      f"sync_program_from_dict() - Invalid program_data format provided. Expected a dictionary, got {type(program_data)}."): return f"sync_program_from_dict() - Invalid program_data format provided. Expected a dictionary, got {type(program_data)}.", 400
 
     # Ensure essential keys exist in the details dictionary
     # These fields are required to create or update a Program instance
@@ -137,13 +136,13 @@ def sync_program_from_dict(client_obj: Client, program_data: dict):
     description = program_data.get('description')  # description can be None based on model default
 
     if check_None(name,
-                  f"sync_program_from_dict() - Skipping program for client {client_obj} due to None 'name' in data."): return None
+                  f"sync_program_from_dict() - Skipping program for client {client_obj} due to None 'name' in data."): return f"sync_program_from_dict() - Skipping program for client {client_obj} due to None 'name' in data.", 400
     if check_None(title,
-                  f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to None 'title' in data."): return None
+                  f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to None 'title' in data."): return f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to None 'title' in data.", 400
 
     # Validate 'description' type
     if check_instance(description, str,
-                      f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to invalid 'description' format. Expected a string, got {type(description)}."): return None
+                      f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to invalid 'description' format. Expected a string, got {type(description)}."): return f"sync_program_from_dict() - Skipping program '{name}' for client {client_obj} due to invalid 'description' format. Expected a string, got {type(description)}.", 200
 
     try:
         # Use get_or_create to find an existing program or create a new one for this client
@@ -182,14 +181,14 @@ def sync_program_from_dict(client_obj: Client, program_data: dict):
             else:
                 logger.debug(f"Program '{name}' for client {client_obj} is identical. Skipping update.")
 
-            return program  # Return the existing (or updated) program object
+            return program, 200  # Return the existing (or updated) program object
 
     except Exception as e:
         # Catch any database-related errors during get_or_create or save
         logger.error(f"Error processing program '{name}' for client {client_obj} during DB operation: {e}",
                      exc_info=True)
         # Returning None indicates failure to process this specific program.
-        return None  # Indicate failure to process this specific program
+        return f"Error processing program '{name}' for client {client_obj} during DB operation: {e}", 200  # Indicate failure to process this specific program
 
 
 def update_existing_program(client_id: int, program_data: dict):
@@ -326,7 +325,7 @@ def update_existing_program(client_id: int, program_data: dict):
         return None  # Indicate failure due to an error
 
 
-def update_programs_list(client_id: int, program_dict: dict) -> bool:
+def update_programs_list(client_id: int, program_dict: dict) -> tuple[dict, int] | tuple[str, int]:
     """
     Synchronizes the program list for a specific client in the database
     based on a dictionary received from the client application.
@@ -341,9 +340,7 @@ def update_programs_list(client_id: int, program_dict: dict) -> bool:
                              (e.g., {'name': '...', 'description': '...', 'available': True}).
 
     Returns:
-        bool: True if the synchronization process completed without critical errors,
-              False otherwise. Note: Individual program processing errors might be logged
-              without causing the entire function to return False.
+        tuple: A tuple containing a dictionary of successfully synced programs and an HTTP status code.
     """
     check_None(client_id, "update_program_list() - Received None client ID.")
     check_None(program_dict, "update_program_list() - Received None program_dict.")
@@ -357,6 +354,7 @@ def update_programs_list(client_id: int, program_dict: dict) -> bool:
     client_obj = Client.get_client_by_ID(client_id)
     logger.info(f"Starting program list synchronization for client: {client_obj}")
 
+    synced_programs = {}  # List to collect successfully synced programs
     try:
         # Use a transaction to ensure atomicity: either all changes succeed or none do.
         with transaction.atomic():
@@ -377,6 +375,8 @@ def update_programs_list(client_id: int, program_dict: dict) -> bool:
                 if synced_program is None:
                     logger.warning(f"Failed to sync program '{program_id}' for client {client_obj}. Skipping.")
                     # Continue processing other programs even if one fails to sync
+                else:
+                    synced_programs[program_id] = synced_program  # Collect successfully synced programs
 
             # --- Set 'available' to False for programs not in the received dictionary ---
             # Identify program names to set unavailable (existing names not present in the received list)
@@ -391,13 +391,13 @@ def update_programs_list(client_id: int, program_dict: dict) -> bool:
                 logger.info(f"No programs to set unavailable for client {client_obj}.")
 
         logger.info(f"Program list synchronization completed for client: {client_obj}")
-        return True  # Indicate overall success
+        return synced_programs, 200  # Indicate overall success
 
     except Exception as e:
         # Catch any exceptions that occur outside the per-program loop (e.g., transaction error)
         logger.error(f"An unexpected error occurred during program list synchronization for client {client_obj}: {e}",
                      exc_info=True)
-        return False  # Indicate overall failure
+        return f"An unexpected error occurred during program list synchronization for client {client_obj}: {e}", 500  # Indicate overall failure
 
 
 def get_program_by_id(program_id: str) -> Program | None:

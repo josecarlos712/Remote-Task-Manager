@@ -43,7 +43,7 @@ function formatTimeSpanish(timeString) {
 function sendAjaxPostRequestJson(api_url, content) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    url = "http://192.168.0.3:8000" + api_url; // Construct the full URL for the API endpoint
+    url = "http://192.168.0.3:8000/" + api_url; // Construct the full URL for the API endpoint
     xhr.open("POST", url, true); // Method, URL, Asynchronous (true)
 
     // Retrieve and set the CSRF token header

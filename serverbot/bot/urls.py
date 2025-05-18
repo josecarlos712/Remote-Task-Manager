@@ -140,9 +140,7 @@ def api_get_tree(request):
 urlpatterns = [
     path('', views.homePage, name="home"),
     path('activity/<str:pk>/', views.activity_page, name="activity"),
-    path('room/<str:pk>/', views.room_page, name="room"),
     path('accounts/login/', views.login_view, name="login"),
-    # path('accounts/logout/', views.logout_view, name="logout"),
     path('accounts/register', views.register_view, name="register"),
     path('programs/', views.component_programs_view, name="component_programs"),
     path('programs/<str:pk>/', views.load_program, name="program"),
@@ -151,12 +149,28 @@ urlpatterns = [
     path('about', views.about_view, name="about"),
 
     # API URLs
-    # path('api/data/<str:pk>', views_api.api_data, name='get_data'),
-    path('api/data/tree', api_get_tree, name='get_tree'),
-    path('api/command/list', views_api.api_update_commands_list, name='get_command_list'),
-    path('api/command/execute', views_api.api_execute_command, name='execute_command'),
+    # Commands
+    path('api/commands/list', views_api.api_update_commands_list, name='get_command_list'),
+    path('api/commands/execute', views_api.api_execute_command, name='execute_command'),
+    # Accounts
     path('api/accounts/register', views_api.api_register, name="api_register"),
     path('api/accounts/login', views_api.api_login, name="api_login"),
     path('api/accounts/logout', views_api.api_logout, name="api_logout"),
+    # Processes
     path('api/refresh/processes_status/', views_api.refresh_processes_status, name="refresh_processes_status"),
+    # Activities
+    path('api/activities', views_api.api_get_activity_by_id, name="get_activity_by_id"),
+    path('api/activities/list', views_api.api_get_activity_list, name="get_activities_list"),
+    path('api/activities/list/user', views_api.api_get_activity_list_from_user, name="get_activities_list_by_user"),
+    path('api/activities/create', views_api.api_create_activity, name="create_activity"),
+    path('api/activities/update', views_api.api_update_activity, name="update_activity"),
+    path('api/activities/delete', views_api.api_delete_activity, name="delete_activity"),
+    # Messages
+    path('api/messages', views_api.api_get_message_by_id, name="get_message_by_id"),
+    path('api/messages/list', views_api.api_get_message_list, name="get_messages_list"),
+    path('api/messages/list/user', views_api.api_get_message_list_from_user, name="get_messages_list_by_user"),
+    path('api/messages/list/activity', views_api.api_get_message_list_from_activity, name="get_messages_list_by_activity"),
+    path('api/messages/create', views_api.api_create_message, name="create_message"),
+    path('api/messages/update', views_api.api_update_message, name="update_message"),
+    path('api/messages/delete', views_api.api_delete_message, name="delete_message"),
 ]

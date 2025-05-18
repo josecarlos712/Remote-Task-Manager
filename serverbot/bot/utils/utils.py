@@ -6,11 +6,48 @@ import logging
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.utils import timezone
 
 from ..models import Client, UserSettings
 from ..utils.APIResponse import NotFoundResponse, InternalErrorResponse, UnauthorizedResponse
 
 logger = logging.getLogger(__name__)
+
+
+# Format date to a relative time string
+def time_ago(date):
+    # Calculate the time difference
+    now = timezone.now()  # Get the current timezone-aware time
+    time_difference = now - date
+
+    # Format the time difference into a human-readable string
+    days = time_difference.days
+    seconds = time_difference.seconds
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    time_ago_str_parts = []
+
+    if days > 0:
+        time_ago_str_parts.append(f"{days} {'día' if days == 1 else 'días'}")
+    if hours > 0:
+        time_ago_str_parts.append(f"{hours} {'hora' if hours == 1 else 'horas'}")
+    if minutes > 0:
+        time_ago_str_parts.append(f"{minutes} {'minuto' if minutes == 1 else 'minutos'}")
+    if seconds > 0 and not time_ago_str_parts:  # Only show seconds if no larger unit is shown
+        time_ago_str_parts.append(f"{seconds} {'segundo' if seconds == 1 else 'segundos'}")
+
+    # Join the parts, or show "just now" if the difference is very small
+    if time_ago_str_parts:
+        # Join with "and" before the last part if there's more than one part
+        if len(time_ago_str_parts) > 1:
+            time_ago_str = ", ".join(time_ago_str_parts[:-1]) + " y " + time_ago_str_parts[-1]
+        else:
+            time_ago_str = time_ago_str_parts[0]
+        time_ago_display = f"hace {time_ago_str}"
+    else:
+        time_ago_display = "justo ahora"  # For very recent activities
+    return time_ago_display
 
 
 def get_absolute_path(relative_path: str) -> str:
@@ -34,7 +71,7 @@ def get_absolute_path(relative_path: str) -> str:
     # os.path.join safely joins path components, handling different OS path separators
     absolute_path = os.path.join(settings.BASE_DIR, relative_path.strip('/').replace('/', '\\'))
 
-    logger.debug(f"Resolved relative path '{relative_path}' to absolute path '{absolute_path}'")
+    #logger.debug(f"Resolved relative path '{relative_path}' to absolute path '{absolute_path}'")
 
     return absolute_path
 
@@ -246,7 +283,7 @@ def send_client_post_request(client_id: int, user: User, endpoint: str, body: di
         return f"send_client_post_request() - An unexpected error occurred for client {client_obj} at {endpoint}: {e}", 500  # Indicate failure and internal server error status
 
 
-def send_client_get_request(client_id: int, endpoint: str) -> tuple:
+def send_client_get_request(client_id: int, endpoint: str) -> tuple[dict, int] | tuple[str, int]:
     """
     Sends a GET request to a specific API endpoint on a client application.
 
@@ -254,17 +291,17 @@ def send_client_get_request(client_id: int, endpoint: str) -> tuple:
         client_id (int): The Django Client ID representing the client.
         endpoint (str): The API endpoint path on the client (e.g., 'api/status/', 'api/commands/').
                         Should NOT start with a leading slash if joining with base URL.
-
     Returns:
-        dict or list or None: The parsed JSON response received from the client (can be a dict or list),
+        dict: The parsed JSON response received from the client (a dict),
                               or None if the request fails or the response is invalid.
+        code: The HTTP status code of the response, or an appropriate error code (e.g., 500, 400) on failure
     """
     if not client_id:
         logger.error("send_client_get_request() - Received None client ID.")
-        return None, 400
+        return "send_client_get_request() - Received None client ID.", 400
     if not endpoint:
         logger.error("send_client_get_request() - Received empty endpoint string.")
-        return None, 400
+        return "send_client_get_request() - Received empty endpoint string.", 400
 
     # Fetch the client object from the database using the provided client_id
     client_obj, success = Client.get_client_by_ID(client_id)
@@ -277,10 +314,9 @@ def send_client_get_request(client_id: int, endpoint: str) -> tuple:
     # Simple join that handles cases where endpoint might or not have a leading slash
     client_api_url = f"{base_url}/{endpoint.lstrip('/')}"
 
-    # TODO: Implement API key management for client requests. Add API key to headers..
-
     logger.debug(f"send_client_get_request() - Sending GET request to {client_api_url} for client {client_obj}")
 
+    response = None
     try:
         # Make the GET request to the client application's API
         # TODO: Implement proper error handling for the requests.get call (timeouts, connection errors)
@@ -300,11 +336,11 @@ def send_client_get_request(client_id: int, endpoint: str) -> tuple:
 
     except requests.exceptions.Timeout:
         logger.error(f"send_client_get_request() - Request to client {client_obj} at {endpoint} timed out.")
-        return None, response.status_code  # Indicate failure
+        return f"send_client_get_request() - Request to client {client_obj} at {endpoint} timed out.", response.status_code  # Indicate failure
 
     except requests.exceptions.ConnectionError:
         logger.error(f"send_client_get_request() - Could not connect to client {client_obj} at {endpoint}.")
-        return None, response.status_code  # Indicate failure
+        return f"send_client_get_request() - Could not connect to client {client_obj} at {endpoint}.", response.status_code  # Indicate failure
 
     except requests.exceptions.RequestException as e:
         # Catch any other requests-related errors (e.g., HTTPError from raise_for_status)
@@ -322,22 +358,22 @@ def send_client_get_request(client_id: int, endpoint: str) -> tuple:
 
         logger.error(
             f"Client responded with status {response.status_code if response else 'N/A'}. Details: {error_details}")
-        return None, response.status_code  # Indicate failure
+        return f"Client responded with status {response.status_code if response else 'N/A'}. Details: {error_details}", response.status_code  # Indicate failure
 
     except json.JSONDecodeError:
         logger.error(f"send_client_get_request() - Invalid JSON response from client {client_obj} at {endpoint}.",
                      exc_info=True)
-        return None, response.status_code  # Indicate failure
+        return f"send_client_get_request() - Invalid JSON response from client {client_obj} at {endpoint}.", response.status_code  # Indicate failure
 
     except Exception as e:
         # Catch any other unexpected errors
         logger.error(
             f"send_client_get_request() - An unexpected error occurred for client {client_obj} at {endpoint}: {e}",
             exc_info=True)
-        return None, response.status_code  # Indicate failure
+        return f"send_client_get_request() - An unexpected error occurred for client {client_obj} at {endpoint}: {e}", response.status_code  # Indicate failure
 
 
-def check_None(value, error_message: str = None, skip: bool = False):
+def check_None(value, error_message: str = None, skip: bool = False) -> tuple[bool, int] | tuple[str, int]:
     """
     Check if the given value is None or empty.
 
@@ -346,16 +382,16 @@ def check_None(value, error_message: str = None, skip: bool = False):
         error_message (str, optional): An error message to log if the value is None or empty.
         skip (bool, optional): If True, returns False anyway, just logs.
     Returns:
-        tuple: A tuple containing True/False (is None, is not None) and an HTTP status code.
+        tuple: A tuple containing True/error_message (is None, is not None) and an HTTP status code.
     """
     if value is None:
         logger.error(error_message)
         if not skip:
-            return True, 400
-    return False, 200
+            return error_message, 400
+    return True, 200
 
 
-def check_instance(obj, instance, error_message: str = None, skip: bool = False):
+def check_instance(obj, instance, error_message: str = None, skip: bool = False) -> tuple[bool, int] | tuple[str, int]:
     """
     Check if the given object is an instance of a specific class.
     Args:
@@ -369,5 +405,5 @@ def check_instance(obj, instance, error_message: str = None, skip: bool = False)
     if obj is isinstance(obj, instance):
         logger.error(error_message)
         if not skip:
-            return True, 400
-    return False, 200
+            return error_message, 400
+    return True, 200

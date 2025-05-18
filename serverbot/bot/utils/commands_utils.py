@@ -10,10 +10,50 @@ from django.db import transaction
 
 from ..models import Command, Client, UserSettings
 from .utils import send_client_get_request, check_None, check_instance
+from . import user_utils, clients_utils
 
 logger = logging.getLogger(__name__)
 
 
+# Get the command list for a specific user
+def get_command_list_by_user(user_id: int) -> tuple[dict, int] | tuple[str, int]:
+    """
+    Retrieves the command list for a specific user from the database.
+
+    Args:
+        user_id (int): The ID of the user whose command list is to be retrieved.
+
+    Returns:
+        tuple: A tuple containing the command list (as a dictionary) and the HTTP status code.
+               If the user is not found, returns an error message and status code.
+    """
+    try:
+        # Get the clients where the user is allowed
+        clients, code = clients_utils.get_clients_by_user(user_id)
+        if code != 200:
+            logger.error(f"User with ID {user_id} not found.")
+            return clients, 404
+
+        # Retrieve the command list from each client
+        command_list = {}
+        for client in clients:
+            # Get the command list from the database, assuming the commands on the client are synchronized with the database
+            # Get all the commands from the database
+            commands = Command.objects.all()
+            # Filter the commands based on the client
+            commands = [command for command in commands if command.client == client]
+            # Add commands to the command list
+            for command in commands:
+                command_list[command.command_id] = command
+
+        return command_list, 200  # Return the command list and status code
+
+    except ObjectDoesNotExist:
+        logger.error(f"User with ID {user_id} not found.")
+        return "User not found.", 404  # Return error message and status code
+
+
+# Get the clients for an specific user
 def sync_command_from_dict(command_id: str, details: dict):
     """
     Synchronizes a single command entry from a dictionary with the database.
@@ -175,3 +215,34 @@ def remove_command_by_id(command_id: str):
         logger.error(f"Error removing command with ID {command_id}: {e}", exc_info=True)
         # Returning False indicates failure to delete due to an error.
         return False  # Indicate failure due to an error
+
+
+# Utility function to get the command list from a client
+# def get_command_list() -> tuple[dict, int]:
+#     """
+#     Retrieves the command list from the client application.
+#     This function sends a GET request to the client and returns the response.
+#
+#     Returns:
+#         tuple: A tuple containing the response data and the HTTP status code.
+#     """
+#     # Define the URL for the client API endpoint
+#     url = f"http://{os.getenv('CLIENT_IP')}/api/commands/list"
+#     logger.debug(f"Sending GET request to client at {url}")
+#
+#     try:
+#         # Get commands from the database
+#         # Get the clients for that user
+#         #clients =
+#         client_obj = Client.get_client_by_id(1)  # Assuming a single client for simplicity
+#         # Check if the response is successful (status code 200)
+#         if response.status_code == 200:
+#             return response.json(), 200  # Return JSON data and status code
+#         else:
+#             logger.error(f"Failed to retrieve command list from client. Status code: {response.status_code}")
+#             return None, response.status_code  # Return None and status code on failure
+#
+#     except requests.RequestException as e:
+#         # Handle any exceptions that occur during the request
+#         logger.error(f"Error retrieving command list from client: {e}", exc_info=True)
+#         return None, 500  # Return None and status code 500 on error
