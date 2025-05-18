@@ -16,26 +16,8 @@ This is a compilation of utilities to manage your own PC using a Web UI to send 
 
 **NEW:** Creating the programs system.
 
-## **New version: v0.4.3**
-Programs Feature
-The application includes a system for managing and monitoring programs available on remote clients. This feature allows the server to receive lists of programs from connected clients, maintain a database record of these programs, and track their status (like availability and running state).
-
-Key components of the Programs feature include:
-
-Program Model: Defines the structure for programs discovered on client machines. Each Program is linked to a specific Client and is uniquely identified by its name within that client. It stores metadata such as title, description, available status (whether the client reported it as available), is_running status, and timestamps (created, updated, start_time, end_time).
-
-Client Model: Represents a remote client machine. Each Client has a unique local_ip and port, and is associated with users via main_user and allowed_users. It serves as the link between the server's database records and the actual client machine where programs reside.
-
-update_programs_list Function: This function is responsible for synchronizing the list of programs for a specific client in the database with a list received from the client application. It iterates through the received list, using the sync_program_from_dict helper for individual program creation/updates, and sets programs not in the received list to available=False instead of deleting them.
-
-update_existing_program Function: This function is a helper used by the synchronization process. Its specific role is to find an existing Program object for a given Client and name and update only the fields provided in the input dictionary (program_data). It ensures that programs are only updated if they already exist and handles updating fields like title, description, available, is_running, and timestamps (start_time, end_time). It includes validation for input data types and logs warnings/errors for missing programs or invalid data.
-
-Client API Endpoint (e.g., /api/program/list): The client application is expected to expose an API endpoint (e.g., /api/program/list) that the server can call (likely via a POST request) to retrieve the current list of programs available on that client. This list is then processed by the server's update_programs_list function.
-
-Client API Endpoint (e.g., api/program/status): The client application might also expose an endpoint (e.g., api/program/status) that the server can call to receive periodic updates on the running status of programs. This would trigger the server to call update_existing_program to update the is_running, start_time, and end_time fields for specific programs.
-
-This system allows the server to maintain a dynamic inventory of programs available on connected clients, reflecting their current state based on information received from the clients themselves.
-
+## **New version: v0.4.4**
+Added the endpoints to gestion Activities and Messages. Create, update and delete activities. Create, update and delete messages.
 
 ## **Function definitions**
 
