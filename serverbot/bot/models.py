@@ -15,13 +15,20 @@ logger = logging.getLogger(__name__)
 
 # --- Extra util functions ---
 # user.to_dict()
-def user_to_dict(user: ForeignKey) -> dict:
+def user_to_dict(user: ForeignKey[User]|User) -> dict:
     return {
         'id': user.pk,
         'username': user.username,
         'email': user.email,
         'first_name': user.first_name,
         'last_name': user.last_name,
+        'is_active': user.is_active,
+        'is_staff': user.is_staff,
+        'is_superuser': user.is_superuser,
+        'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+        'last_login': user.last_login.isoformat() if user.last_login else None,
+        'groups': [group.name for group in user.groups.all()],  # List of group names
+        'user_permissions': [perm.codename for perm in user.user_permissions.all()],  # List of permission codenames
     }
 
 
@@ -158,7 +165,7 @@ class Client(models.Model):
     # It's a ForeignKey to the User model.
     # Using models.SET_NULL allows the client to remain if the main user is deleted,
     # and setting null=True makes the field nullable in the database.
-    main_user = models.ForeignKey(
+    main_user: ForeignKey[User] = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,  # Set the main_user field to NULL when the User is deleted
         related_name='main_clients',  # Provides a reverse relation name on the User model
@@ -243,51 +250,29 @@ class Client(models.Model):
         # '-updated' for inverse ordering, and 'updated' for normal ordering
         ordering = ['local_ip', 'main_user']
 
-    def is_user_allowed(self, user):
+    def is_user_allowed(self, user_id) -> bool:
         """
         Checks if a given user is in the list of allowed users for this client.
 
         Args:
-            user (User): The user to check against the allowed users for this client.
+            user_id (int): The user to check against the allowed users for this client.
 
         Returns:
             tuple (String/Client, int): Returns a tuple containing the client object or a error message and a boolean indicating success.
         """
-        allowed = self.allowed_users.filter(pk=user.pk).exists()
+        # Client owner is always allowed
+        print(f"Client owner: {self.main_user.pk}")
+        if self.main_user.pk == user_id:
+            logger.debug(f"User {user_id} is the main user for client {self}.")
+            return True
+
+        allowed = self.allowed_users.filter(pk=user_id).exists()
         if allowed:
-            logger.debug(f"User {user.username} is allowed for client {self.local_ip}.")
-            return "User is allowed for client.", True
+            logger.debug(f"User {user_id} is allowed for client {self}.")
+            return True
         else:
-            logger.debug(f"User {user.username} is NOT allowed for client {self.local_ip}.")
-            return "User is NOT allowed for client.", False
-
-    @staticmethod
-    def get_client_by_ID(client_id):
-        """
-        Retrieves a client instance by its ID.
-
-        Args:
-            client_id (int): The Client ID representing the client sending the program list.
-
-        Returns:
-            tuple (String/Client, int): Returns a tuple containing the client object or a error message and a boolean indicating success.
-        """
-        try:
-            client_obj = Client.objects.get(pk=client_id)
-            logger.debug(f"api_update_program_list() - Successfully retrieved client: {client_obj}")
-            return client_obj, True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"api_update_program_list() - Client with ID '{client_id}' not found.")
-            return f"api_update_program_list() - Client with ID '{client_id}' not found.", False
-
-        except MultipleObjectsReturned:
-            logger.error(f"api_update_program_list() - Multiple clients found for ID '{client_id}'. Database error?")
-            return f"api_update_program_list() - Multiple clients found for ID '{client_id}'. Database error?", False
-
-        except Exception as e:
-            logger.error(f"api_update_program_list() - Error retrieving client '{client_id}': {e}", exc_info=True)
-            return f"api_update_program_list() - Error retrieving client '{client_id}': {e}", False
+            logger.debug(f"User {user_id} is NOT allowed for client {self}.")
+            return False
 
 
 class Activity(models.Model):
@@ -636,29 +621,3 @@ class Command(models.Model):
         # Updated __str__ to remove handler
         client_str = str(self.client) if self.client else "No Client"
         return f"Command: {self.name} on {client_str}"
-
-    @staticmethod
-    def get_command_by_id(command_id: str):
-        """
-        Retrieves a Command object from the database based on its command_id.
-
-        Args:
-            command_id (str): The unique identifier of the command to retrieve.
-
-        Returns:
-            Command or None: The Command object if found, None otherwise.
-        """
-        if not isinstance(command_id, str):
-            return "get_command_by_id() - command_id is not a string.", False
-        if command_id is None:
-            return "get_command_by_id() - Received None command_id.", False
-
-        try:
-            # Get the Command object by its command_id
-            command: Command = Command.objects.get(command_id=command_id)
-            return command  # Return the found command object
-
-        except ObjectDoesNotExist:
-            # Handle the case where a Command with the given command_id does not exist
-            logger.warning(f"Command with ID '{command_id}' not found in the database.")
-            return None  # Indicate that the command was not found

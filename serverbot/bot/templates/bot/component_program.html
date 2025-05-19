@@ -1,24 +1,24 @@
 {% load static %}
-<h3>
+<div class="programs-container">
   <h3>
-    <button type="button" id="update-button" onclick="" alt="Refresh">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
-          stroke="#000000"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-      <span class="visually-hidden">Refresh</span>
-    </button>
-    Programs
+    <h3>
+      <button type="button" id="update-button" onclick="" alt="Refresh">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
+            stroke="#000000"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <small>(last update: {{now_date|default:"None"}})</small>
+    </h3>
   </h3>
-</h3>
-<div class="vertical-container">
+
   {% for program in programs %}
-  <div class="card">
+  <div class="program-item">
     <a href="#" class="card-link" onclick="fetchProgramDetails({{ program.id }}); return false;">
       <h3 class="card-title">
         {{program.name}}<span class="card-icon">
@@ -32,6 +32,10 @@
     </a>
     <p>{{program.description}}</p>
     <em>{{program.path}}</em>
+  </div>
+  {% empty %}
+  <div class="empty-message">
+    <p>No existen programas disponibles para {{user.username}}</p>
   </div>
   {% endfor %}
 </div>
@@ -61,6 +65,102 @@
       })
       .catch((error) => {});
   }
+
+  // This function still uses fetch as per your original code.
+  // If you prefer to use sendAjaxPostRequest for this, it would need adaptation
+  // as sendAjaxPostRequest is designed for JSON responses with a 'status' or 'success' field.
+  function getProgramsStatus() {
+    fetch(`{% url 'refresh_processes_status' %}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"), // Assumes getCookie is accessible
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          console.error("HTTP error fetching program status:", response.status);
+          // Optionally parse response body for more details if server sends JSON errors
+          return response.json().catch(() => {
+            throw new Error(response.statusText);
+          }); // Try to parse JSON, fallback to status text
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const programsConsole = document.getElementById("programs_console"); // Use getElementById
+        if (programsConsole) {
+          // Assuming data is the direct text/JSON to display, adjust if data has a specific structure
+          programsConsole.textContent = JSON.stringify(data, null, 2); // Display JSON nicely
+          // Or if data.message or data.status is expected:
+          // programsConsole.textContent = data.message || data.status || JSON.stringify(data);
+        } else {
+          console.warn("Element with ID 'programs_console' not found.");
+          console.log("Program Status Data:", data); // Log to browser console as fallback
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting program status:", error);
+        const programsConsole = document.getElementById("programs_console");
+        if (programsConsole) {
+          programsConsole.textContent = `Error fetching status: ${error}`;
+        } else {
+          console.error("Error fetching status and console element not found.");
+        }
+      });
+
+    /**
+     * Sends a request to the Django API to execute a command on a specific client.
+     *
+     * @param {string | number} clientId The ID (primary key) of the Client model instance.
+     * @param {string} commandId The unique command_id of the command on the client application.
+     * @param {Array<any>} [args=[]] Optional list of positional arguments for the command.
+     * @param {object} [kwargs={}] Optional dictionary of keyword arguments for the command.
+     */
+    function executeCommand(clientId, commandId, args = [], kwargs = {}) {
+      // TODO: Ensure the URL pattern for the command execution API is correct in your Django urls.py
+      const url = "/api/commands/execute/"; // The API endpoint URL
+
+      // Construct the JSON payload to send to the Django server
+      const jsonData = {
+        client_id: clientId,
+        command_id: commandId,
+        args: args, // Include positional arguments
+        kwargs: kwargs, // Include keyword arguments
+      };
+
+      console.log(`DEBUG: Preparing to send command execution request for command '${commandId}' on client ID '${clientId}'.`);
+      console.log("DEBUG: Payload:", jsonData);
+
+      // Use the sendAjaxPostRequestJson function to send the request
+      // It returns a Promise that resolves with [successStatus, responseData]
+      sendAjaxPostRequestJson(url, jsonData);
+    }
+  }
 </script>
 <script src="{% static 'js/component_program.js' %}"></script>
 <script src="{% static 'js/button_call_api.js' %}"></script>
+<style>
+  /* Style for the grid container */
+  .commands-grid-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Creates 3 equal columns */
+    gap: 20px; /* Space between grid items */
+    padding: 20px; /* Optional: padding around the grid */
+  }
+
+  .command-item {
+    border: 1px solid var(--color-foregroud); /* Example: Add a border to each activity item */
+    padding: 15px;
+    border-radius: 8px;
+    background-color: var(--color-background);
+    display: flex; /* Make the item a flex container */
+    flex-direction: column; /* Stack content vertically */
+  }
+
+  /* Adjust empty message for grid layout */
+  .empty-message {
+    grid-column: 1 / -1; /* Make the empty message span all columns */
+    /* ... your existing empty-message styles ... */
+  }
+</style>

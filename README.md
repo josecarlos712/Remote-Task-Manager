@@ -1,4 +1,4 @@
-# **Remote-Task-Manager v0.4.3**
+# **Remote-Task-Manager v0.4.5**
 
 Remote Task Manager v0.1.0. Basic web interface
 Remote Task Manager v0.2.0. Adding different capabilities to the server.
@@ -7,6 +7,8 @@ Remote Task Manager v0.4.0. Creating the commands system.
 Remote Task Manager v0.4.1. Creating the commands system. Adjusting models.
 Remote Task Manager v0.4.2. Creating the commands system. Send commands requests.
 Remote Task Manager v0.4.3. Creating the program system. Send program requests.
+Remote Task Manager v0.4.4. Adding endpoints. Activities, Users and Messages.
+Remote Task Manager v0.4.5. Adding endpoints. Programs, Clients and Commands.
 
 
 This is a compilation of utilities to manage your own PC using a Web UI to send commands and run tasks.
@@ -16,8 +18,8 @@ This is a compilation of utilities to manage your own PC using a Web UI to send 
 
 **NEW:** Creating the programs system.
 
-## **New version: v0.4.4**
-Added the endpoints to gestion Activities and Messages. Create, update and delete activities. Create, update and delete messages.
+## **New version: v0.4.5**
+Added the endpoints to gestion Programs and Commands. The endpoints are:
 
 ## **Function definitions**
 

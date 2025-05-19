@@ -3,7 +3,6 @@ import logging
 
 from django.contrib.auth.models import User
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -68,6 +67,7 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
         user_id (int): The ID of the user to update.
         parameters (dict): A dictionary containing the parameters to update.
         {
+            "user_id": int,
             "username": str,
             "email": str,
             "first_name": str,
@@ -90,6 +90,7 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
 
     # Check the parameters
     expected_parameters = {
+        "user_id": int,
         "username": str,
         "email": str,
         "first_name": str,
@@ -99,6 +100,7 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
         "is_staff": bool,
         "is_superuser": bool,
         "groups": list,
+        "user_permissions": list,
     }
 
     for key, value in parameters.items():
@@ -112,15 +114,16 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
     # Check if update is necessary
     update_necessary = False
     for key, value in parameters.items():
+        if key == "user_id":
+            continue
         if getattr(existing_user, key) != value:
             update_necessary = True
             break
 
     # Update the user
     try:
-        for key, value in expected_parameters.items():
-            if key in parameters:
-                setattr(existing_user, key, value)
+        for key, value in parameters.items():
+            setattr(existing_user, key, value)
         existing_user.save()
         return existing_user, 200  # OK
     except Exception as e:
@@ -128,4 +131,17 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
         return "There was an internal error updating the user", 500  # Internal Server Error
 
 
-# Utility function to create a new user
+# Utility function to get the list of all users
+def get_users() -> tuple[list[User] | str, int]:
+    """
+    Get a list of all users.
+
+    Returns:
+        tuple: A tuple containing a list of User objects or the error message and status code.
+    """
+    try:
+        users = User.objects.all()
+        return users, 200  # OK
+    except Exception as e:
+        logger.error(f"Error retrieving users: {e}")
+        return "There was an internal error retrieving the users", 500  # Internal Server Error

@@ -4,27 +4,82 @@
 {% block baseblock %}
 {% load static %}
 <!-- prettier-ignore-attribute -->
-<main>
-  <div id="tab1" class="tab-content">{% include 'bot/component_activity.html' %}</div>
-  <!-- <div id="tab2" class="tab-content">{% include 'bot/component_program.html' %}</div>
-  <div id="tab3" class="tab-content">{% include 'bot/component_command.html' %}</div>
-
+<div id="component_activity"></div>
+<div id="component_program"></div>
+<div id="component_command"></div>
+<!-- 
   Incluir dinámicamente los componentes adicionales 
   {% include 'bot/dynamic_components/commands.html' %} {% for component in dynamic_components %}
-  <div id="extra-container" class="tab-content">{% include 'bot/dynamic_components/'|add:component %}</div>
+  <div id="extra-container">{% include 'bot/dynamic_components/'|add:component %}</div>
   {% endfor %}
 -->
-  <div id="tab4" class="tab-content">
-    <h2>Configuration</h2>
-    <p>Information about configuring the Telegram Bot Manager...</p>
-  </div>
+<div>
+  <h2>Configuration</h2>
+  <p>Information about configuring the Telegram Bot Manager...</p>
+</div>
 
-  <div id="tab5" class="tab-content">
-    <h2>About</h2>
-    <p>Remote Task Manager v24.1023.01</p>
-    <p>A compilation of utilities to manage your own PC using a Telegram bot to send commands.</p>
-  </div>
-</main>
+<div>
+  <h2>About</h2>
+  <p>Remote Task Manager v24.1023.01</p>
+  <p>A compilation of utilities to manage your own PC using a Telegram bot to send commands.</p>
+</div>
+<script>
+  // This function runs once the document (web page) is fully loaded
+  document.addEventListener("DOMContentLoaded", function () {
+    // Automatically load the component when the page is loaded
+    loadProgramComponent();
+    loadCommandComponent();
+    loadActivityComponent();
+
+    function loadActivityComponent() {
+      const activityContainer = document.getElementById("component_activity");
+      if (activityContainer) {
+        fetch("{% url 'component_activity' %}")
+          .then((response) => response.text())
+          .then((html) => {
+            activityContainer.innerHTML = html;
+          })
+          .catch((error) => {
+            console.error("Error loading activity component:", error);
+          });
+      } else {
+        console.warn("Activity container not found.");
+      }
+    }
+
+    function loadCommandComponent() {
+      const commandContainer = document.getElementById("component_command");
+      if (commandContainer) {
+        fetch("{% url 'component_command' %}")
+          .then((response) => response.text())
+          .then((html) => {
+            commandContainer.innerHTML = html;
+          })
+          .catch((error) => {
+            console.error("Error loading command component:", error);
+          });
+      } else {
+        console.warn("Command container not found.");
+      }
+    }
+
+    function loadProgramComponent() {
+      const programContainer = document.getElementById("component_program");
+      if (programContainer) {
+        fetch("{% url 'component_program' %}")
+          .then((response) => response.text())
+          .then((html) => {
+            programContainer.innerHTML = html;
+          })
+          .catch((error) => {
+            console.error("Error loading program component:", error);
+          });
+      } else {
+        console.warn("Program container not found.");
+      }
+    }
+  });
+</script>
 <!-- prettier-ignore -->
 {% endblock %}
 <!-- prettier-ignore-attribute -->

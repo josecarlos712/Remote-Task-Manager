@@ -211,7 +211,7 @@ def get_activities() -> tuple[str, int] | tuple[QuerySet, int]:
 
 
 # Utility function to get all activities for a user
-def get_activities_from_user(user_id: int) -> tuple[str, int] | tuple[QuerySet, int]:
+def get_activities_by_user(user_id: int) -> tuple[str, int] | tuple[QuerySet, int]:
     """
     Get all activities for a user.
 
@@ -226,7 +226,15 @@ def get_activities_from_user(user_id: int) -> tuple[str, int] | tuple[QuerySet, 
         return existing_user, code  # Raise the error message and status code if user not found
 
     # Get all activities for the user
-    activities = Activity.objects.filter(user=existing_user)
+    try:
+        activities = Activity.objects.filter(user=existing_user)
+    except ObjectDoesNotExist:
+        logger.warning(f"User with ID '{user_id}' does not exist.")
+        return f"User with id {user_id} does not exist", 404
+    # Check if there are any activities for the user
+    if not activities.exists():
+        return activities, 200  # Not Found
+
     for activity in activities:
         # Convert datetime fields to the local time zone
         activity.created = timezone.localtime(activity.created)

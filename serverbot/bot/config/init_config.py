@@ -5,8 +5,95 @@ import re
 from logging.handlers import TimedRotatingFileHandler
 
 from django.conf import settings
+from django.utils import timezone
 
 from ..utils.utils import check_None, get_absolute_path
+
+
+class ConfigManager:
+    def __init__(self, config_path="bot/config/configuration.ini"):
+        self.config_path = config_path
+        self.config = configparser.ConfigParser()  # Primary object for INI file I/O
+        self._settings = {}  # Dictionary for easy access (lowercase keys)
+
+        self._load_config_from_file()  # Load and populate on initialization
+
+    def _load_config_from_file(self):
+        """Internal method to load config from file and populate self.config and self._settings."""
+        try:
+            self.config.read(self.config_path)
+            self._sync_config_to_settings_dict()  # Sync to the dictionary view
+            print(f"Configuration loaded from {self.config_path}")
+        except FileNotFoundError:
+            print(f"Config file not found at {self.config_path}. Creating with default settings.")
+            self._set_default_config()  # Set defaults in self.config and sync to _settings
+            self._write_config_to_file()  # Save defaults to disk
+        except configparser.Error as e:
+            print(f"Error reading config file: {e}. Falling back to defaults.")
+            self._set_default_config()  # Fallback to defaults
+
+    def _set_default_config(self):
+        """Populates self.config with default values and synchronizes to self._settings."""
+        default_sections = {
+            "serversettings": {"HOST": "0.0.0.0", "PORT": "5000", "DEBUG": "True"},
+            "authenticationsettings": {"TOKEN_EXPIRATION_MINUTES": "60"},
+            "loggingsettings": {"LOG_FILE": "logs/system.log", "MAX_LOG_SIZE_MB": "5"},
+            "processmanagement": {"ALLOW_PROCESS_KILL": "True"},
+            "paths": {"PATH_PROGRAMS": "bot/config/programs.json", "PATH_DOWNLOADS": "bot/downloads"},
+            "systemmonitoring": {"CPU_USAGE_INTERVAL": "1"},
+            "serverstatistics": {"LAST_COMMANDS_UPDATED": "0", "LAST_PROGRAMS_UPDATED": "0"}
+        }
+        # Clear existing sections before adding defaults to avoid conflicts
+        for section in self.config.sections():
+            self.config.remove_section(section)
+
+        for section, options in default_sections.items():
+            self.config.add_section(section)
+            for key, value in options.items():
+                self.config.set(section, key, value)
+        self._sync_config_to_settings_dict()  # Ensure _settings dict is updated with defaults
+
+    def _sync_config_to_settings_dict(self):
+        """Synchronizes self.config (configparser object) to self._settings (dict)."""
+        self._settings.clear()
+        for section in self.config.sections():
+            # Both section and key names can be converted to lowercase for the dict view
+            self._settings[section.lower()] = {key.lower(): value for key, value in self.config.items(section)}
+
+    def _write_config_to_file(self):
+        """Writes the current state of the configparser object back to the INI file."""
+        try:
+            with open(self.config_path, 'w') as configfile:
+                # Use self.config to write the data
+                self.config.write(configfile)
+            print(f"Configuration successfully written to {self.config_path}")
+        except IOError as e:
+            print(f"Error writing config file: {e}")
+
+    # --- Public methods for accessing and updating settings ---
+
+    def get_setting(self, section, key):
+        """Get a setting value using lowercase section and key."""
+        return self._settings.get(section.lower(), {}).get(key.lower())
+
+    def update_and_save_setting(self, section, key, value):
+        """Updates a setting in memory and saves it immediately to the file."""
+        # 1. Update self.config (the object that writes to the file)
+        # Use the lowercase section name for access, but configparser will write it back
+        # with the casing it was initialized with or added (which is now lowercase for sections)
+        if not self.config.has_section(section.lower()):  # Check existence using lowercase
+            self.config.add_section(section.lower())  # Add using lowercase
+        self.config.set(section.lower(), key, str(value))  # Convert value to string for INI file
+
+        # 2. Update self._settings dictionary to keep it in sync
+        # Ensure section exists in the dict, then update the key (lowercase)
+        if section.lower() not in self._settings:
+            self._settings[section.lower()] = {}
+        self._settings[section.lower()][key.lower()] = str(value)
+
+        # 3. Save the changes to the file
+        self._write_config_to_file()
+        print(f"Setting '{section}.{key}' updated to '{value}' and saved.")
 
 
 class Configuration():
@@ -14,7 +101,7 @@ class Configuration():
         self._system_info = {}
         self.logging = None
         self.config_path = f"bot/config/{config_path}"
-        self._settings = {}
+        self._settings: ConfigManager = None  # Use the ConfigManager class for INI file handling
         self.initialize_server()
 
     # This function is executed on the start of the server to check if everything is okay.
@@ -159,7 +246,7 @@ class Configuration():
             with open(filename, "w", encoding="utf-8") as file:
                 json.dump(info, file, indent=4)
                 file.close()
-            self.logging.debug(f"System info gathered: {info}")
+            #self.logging.debug(f"System info gathered: {info}")
             return info
 
         # Run the function to save the info
@@ -218,34 +305,35 @@ class Configuration():
                 # If the file cannot be created, you might need to handle this error (e.g., exit the program)
                 return  # Exit the function if file creation failed
 
-        # Now that the file is guaranteed to exist, open and parse it
+        # Load the configuration file
+        self._settings = ConfigManager(self.config_path)  # Use the ConfigManager class for INI file handling
+
+        current_timestamp_str = timezone.localtime().strftime("%Y-%m-%d %H:%M:%S")
+
+        self._settings.update_and_save_setting(
+            'serverstatistics',  # Section name (lowercase as per your INI file)
+            'last_commands_updated',  # Key name (matches your INI file, usually uppercase for constants)
+            current_timestamp_str  # The new value (as a string)
+        )
+        self._settings.update_and_save_setting(
+            'serverstatistics',  # Section name (lowercase as per your INI file)
+            'last_programs_updated',  # Key name (matches your INI file, usually uppercase for constants)
+            current_timestamp_str  # The new value (as a string)
+        )
+        # print(f"Configuration loaded: {self._settings}")
+
+    def _write_config_to_file(self):
+        """Writes the current state of the configparser object back to the INI file."""
         try:
-            # Assuming you are using configparser as the parsing logic is similar to INI
-            config = configparser.ConfigParser()
-            config.read(self.config_path)
-
-            # Load settings into self._settings from configparser
-            for section in config.sections():
-                self._settings[section.lower()] = {}
-                for key, value in config.items(section):
-                    self._settings[section.lower()][key.lower()] = self.parse_value(value)  # Keep keys lowercase
-
-            if self.logging:
-                self.logging.debug(f"Configuration loaded successfully on {self.config_path}")
-
-        except configparser.Error as e:
-            if self.logging:
-                self.logging.error(f"Error parsing configuration file {self.config_path}: {e}")
-            else:
-                print(f"Error parsing configuration file {self.config_path}: {e}")  # Fallback
-            # Handle parsing errors (e.g., log a warning, use default values)
+            with open(self.config_path, 'w') as configfile:
+                config = configparser.ConfigParser()
+                # TODO Remove this when the configuration is finished
+                # SystemStatistics->last_command_update stored in datetime format
+                configfile['serverstatistics']['last_command_update'] = timezone.now()
+                config.write(configfile)
+            print(f"Configuration successfully written to {self.config_path}")
         except IOError as e:
-            if self.logging:
-                self.logging.error(f"Error reading configuration file {self.config_path}: {e}")
-            else:
-                print(f"Error reading configuration file {self.config_path}: {e}")  # Fallback
-            # Handle file reading errors
-        print(f"Configuration loaded: {self._settings}")
+            print(f"Error writing config file: {e}")
 
     def parse_value(self, value):
         """Converts string values to appropriate data types."""
@@ -321,7 +409,7 @@ class Configuration():
                 self.logging.info(f"CheckDB: Created User System ({user}).")
             else:
                 pass
-                #self.logging.debug(f"CheckDB: User System already exists.")
+                # self.logging.debug(f"CheckDB: User System already exists.")
 
         except Exception as e:
             self.logging.error(f"CheckDB ERROR: Exception on getting or creating User System - {e}", exc_info=True)
@@ -349,7 +437,7 @@ class Configuration():
                     self.logging.info(f"CheckDB: Created Activity 0 ({activity}).")
                 else:
                     pass
-                    #self.logging.debug(f"CheckDB: Activity 0 already exists.")
+                    # self.logging.debug(f"CheckDB: Activity 0 already exists.")
 
                 # If both checks/creations were successful, return True
                 return True, "CheckDB OK"
@@ -358,12 +446,12 @@ class Configuration():
                 self.logging.error(f"CheckDB ERROR: Exception on getting or creating Activity 0 - {e}", exc_info=True)
                 return False, f"CheckDB ERROR: Exception on getting or creating Activity 0 - {e}"
 
-    def __getitem__(self, key, default=None):
+    def __getitem__(self, section, key, default=None):
         """Retrieves a configuration value given the key."""
-        if key in self._settings:
-            return self._settings.get(key, default if default else None)
-        elif key in self._system_info:
-            return self._system_info.get(key, default if default else "Unknown")
-        else:
-            self.logging.log(logging.ERROR, f"{key} is not in suported dicts on Configuration.")
-            return default if default else None
+        # Get setting from the ConfigManager
+        value = self._settings.get_setting(section, key)
+        if value is None:
+            # If the value is not found, return the default value
+            return default
+        # Convert the value to its appropriate type
+        return self.parse_value(value)

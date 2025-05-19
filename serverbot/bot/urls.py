@@ -139,18 +139,23 @@ def api_get_tree(request):
 
 urlpatterns = [
     path('', views.homePage, name="home"),
-    path('activity/<str:pk>/', views.activity_page, name="activity"),
-    path('accounts/login/', views.login_view, name="login"),
+    path('activity/<str:pk>', views.activity_page, name="activity"),
+    path('accounts/login', views.login_view, name="login"),
     path('accounts/register', views.register_view, name="register"),
-    path('programs/', views.component_programs_view, name="component_programs"),
-    path('programs/<str:pk>/', views.load_program, name="program"),
+    path('programs', views.component_programs_view, name="component_programs"),
+    path('programs/<str:pk>', views.load_program, name="program"),
     path('error', views.error_page, name="error"),
-    path('cooking/', views.cooking, name="cooking"),
+    path('cooking', views.cooking, name="cooking"),
     path('about', views.about_view, name="about"),
+    path('component/programs', views.component_programs_view, name="component_program"),
+    path('component/activities', views.component_activities_view, name="component_activity"),
+    path('component/commands', views.component_commands_view, name="component_command"),
+
 
     # API URLs
     # Commands
-    path('api/commands/list', views_api.api_update_commands_list, name='get_command_list'),
+    path('api/commands/update', views_api.api_update_commands_list, name='update_command_list'),
+    path('api/commands/list', views_api.api_get_command_list, name='get_command_list'),
     path('api/commands/execute', views_api.api_execute_command, name='execute_command'),
     # Accounts
     path('api/accounts/register', views_api.api_register, name="api_register"),
@@ -173,4 +178,11 @@ urlpatterns = [
     path('api/messages/create', views_api.api_create_message, name="create_message"),
     path('api/messages/update', views_api.api_update_message, name="update_message"),
     path('api/messages/delete', views_api.api_delete_message, name="delete_message"),
+    # Users
+    path('api/users', views_api.api_get_user_by_id, name="get_user_by_id"),
+    path('api/users/list', views_api.api_get_user_list, name="get_user_list"),
+    path('api/users/update', views_api.api_update_user, name="update_user"),
+    # Clients
+    path('api/clients', views_api.api_get_client_by_id, name="get_client_by_id"),
+    path('api/clients/list', views_api.api_get_client_list, name="get_client_list_by_user"),
 ]

@@ -5,8 +5,10 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from django.http import JsonResponse
 
+from . import clients_utils
 from .APIResponse import InternalErrorResponse
-from .utils import check_None, check_instance, send_client_get_request
+from .utils import check_None, check_instance
+from .clients_utils import send_client_get_request
 from ..models import Program, Client
 import json
 import os
@@ -400,7 +402,7 @@ def update_programs_list(client_id: int, program_dict: dict) -> tuple[dict, int]
         return f"An unexpected error occurred during program list synchronization for client {client_obj}: {e}", 500  # Indicate overall failure
 
 
-def get_program_by_id(program_id: str) -> Program | None:
+def get_program_by_id(program_id: str) -> tuple[Program | str, int]:
     """
     Retrieves a program object from the database based on its program_id.
 
@@ -413,43 +415,127 @@ def get_program_by_id(program_id: str) -> Program | None:
     try:
         # Get the program object by its program_id
         program: Program = Program.objects.get(program_id=program_id)
-        return program  # Return the found program object
+        return program, 200  # Return the found program object
 
     except ObjectDoesNotExist:
         # Handle the case where a program with the given program_id does not exist
         logger.warning(f"program with ID '{program_id}' not found in the database.")
-        return None  # Indicate that the program was not found
+        return f"program with ID '{program_id}' not found in the database.", 404  # Indicate that the program was not found
 
 
-def get_program_list(client_obj):
+def get_program_by_client(client_id: int) -> tuple[dict | str, int]:
     """
-    Sends a GET request to a client application to retrieve its list of programs.
+    Retrieves a program object from the database based on its client ID.
 
     Args:
-        client_obj (Client): The Django Client model instance representing the client.
+        client_id (int): The unique identifier of the client whose program to retrieve.
 
     Returns:
-        list or None: A list of program dictionaries received from the client,
-                      or None if the request fails or the response is invalid.
-                      Each dictionary is expected to represent a program
-                      (e.g., {'program_id': '...', 'name': '...', ...}).
+        tuple: A tuple containing the program object if found, or an error message and status code.
+    """
+    try:
+        # Get client object from the database using the provided client_id
+        client_obj, code = clients_utils.get_client_by_id(client_id)
+        if code != 200:
+            logger.warning(f"Client with ID '{client_id}' not found in the database.")
+            return f"Client with ID '{client_id}' not found in the database.", 404  # Indicate that the client was not found
+
+        # Get the program object list filtered by its client
+        try:
+            programs = Program.objects.filter(client=client_obj)
+            if not programs:
+                logger.warning(f"No programs found for client with ID '{client_id}'.")
+                return {}, 200
+        except MultipleObjectsReturned:
+            logger.error(f"Multiple programs found for client with ID '{client_id}'.")
+            return f"Multiple programs found for client with ID '{client_id}'.", 500
+
+    except ObjectDoesNotExist:
+        # Handle the case where a program with the given client_id does not exist
+        logger.warning(f"Programs for client with ID '{client_id}' not found in the database.")
+        return f"Programs for client with ID '{client_id}' not found in the database.", 404  # Indicate that the program was not found
+
+
+def get_program_list_from_client(client_id):
+    """
+    Retrieves a list of programs from the client application.
+    Args:
+        client_id (int): The ID of the client whose programs are to be retrieved.
+    Returns:
+        dict: A dictionary of Program objects associated with the client.
+        {
+            'program_id': Program object,
+            ...
+        }
     """
 
-    # TODO - Replace every check with check function
-    check_None(client_obj, "get_client_programs() - Received None client object.")
+    msg, code = check_instance(client_id, int)
+    if code != 200:
+        logger.error(msg)
+        return msg, code
 
     # URL for the client application's program list API endpoint
-    programs_api_endpoint = "api/program/list"
+    programs_api_endpoint = "api/programs/list"
 
-    logger.debug(f"get_client_programs() - Sending GET request to {programs_api_endpoint} for client {client_obj}")
+    logger.debug(f"get_client_programs() - Sending GET request to {programs_api_endpoint} for client {client_id}")
 
     # Send GET request to the client application
-    response, status_code = send_client_get_request(client_obj, programs_api_endpoint)
-    logger.debug(f"get_client_programs() - Received programs list from client {client_obj}: {response}")
+    response, status_code = send_client_get_request(client_id, programs_api_endpoint)
+    # Check if the response is valid
+    if status_code != 200:
+        logger.error(f"get_client_programs() - Error retrieving programs from client {client_id}. Status code: {status_code}")
+        return f"Error retrieving programs from client {client_id}. Status code: {status_code}", status_code
+
+    logger.debug(f"get_client_programs() - Received programs list from client {client_id}: {response}")
 
     if response and status_code == 200:
         return response  # Return the list of programs if the request was successful
     else:
         logger.warning(
-            f"get_client_programs() - Failed to retrieve programs from client {client_obj}. Status code: {status_code}")
+            f"get_client_programs() - Failed to retrieve programs from client {client_id}. Status code: {status_code}")
         return None  # Return None if the request failed or the response was invalid
+
+
+def get_program_list_by_user(user_id) -> tuple[dict | str, int]:
+    """
+    Retrieves a list of programs associated with a specific user.
+
+    Args:
+        user_id (int): The ID of the user whose programs are to be retrieved.
+
+    Returns:
+        dict: A dict of Program objects associated with the user.
+        {
+            'program_id': Program object,
+            ...
+        }
+    """
+    # Check if the user_id is valid
+    msg, code = check_instance(user_id, int,
+                  f"get_program_list_by_user() - Invalid user_id provided. Expected an integer, got {type(user_id)}.")
+    if code != 200:
+        logger.error(msg)
+        return msg, code
+
+    # Fetch programs associated with the user
+    try:
+        # Get clients by user_id
+        clients, code = clients_utils.get_clients_by_user(user_id)
+        if code != 200:
+            logger.error(f"get_program_list_by_user() - Error retrieving clients for user {user_id}. Status code: {code}")
+            return f"Error retrieving clients for user {user_id}. Status code: {code}", code
+
+        # Get programs associated with the clients
+        programs = {}
+        for client in clients:
+            client_programs, code = get_program_by_client(client.id)
+            if code != 200:
+                logger.error(f"get_program_list_by_user() - Error retrieving programs for client {client.id}. Status code: {code}")
+                return f"Error retrieving programs for client {client.id}. Status code: {code}", code
+
+            # Merge the programs into the main dictionary
+            programs.update(client_programs)
+        return programs, 200  # Return the list of programs
+    except Exception as e:
+        logger.error(f"Error retrieving programs for user {user_id}: {e}")
+        return f"Error retrieving programs for user {user_id}: {e}", 500

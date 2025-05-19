@@ -26,6 +26,86 @@ function formatTimeSpanish(timeString) {
 }
 
 /**
+ * Sends an AJAX GET request to a specified URL.
+ *
+ * @param {string} api_url - The API endpoint URL (e.g., 'api/activity/list/').
+ * Query parameters should be included in this string if needed.
+ * @returns {Promise<[boolean, object | string]>} A Promise that resolves with a tuple:
+ * - [true, data]: If the request is successful (HTTP 2xx) and the response is parseable JSON.
+ * 'data' is the parsed JSON response body.
+ * - [true, rawText]: If the request is successful (HTTP 2xx) but the response is not parseable JSON.
+ * 'rawText' is the raw response text.
+ * - [false, errorData]: If the request results in an HTTP error (non-2xx) and the response is parseable JSON.
+ * 'errorData' is the parsed JSON error response body.
+ * - [false, rawText]: If the request results in an HTTP error (non-2xx) and the response is not parseable JSON.
+ * 'rawText' is the raw response text.
+ * - [false, string]: If a network error occurs or the request cannot be sent.
+ * The string is an error message.
+ */
+function sendAjaxGetRequest(api_url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    // Construct the full URL for the API endpoint
+    // TODO: Replace with your actual base URL or make it configurable
+    const baseUrl = "http://192.168.0.3:8000/";
+    const url = baseUrl + api_url;
+
+    xhr.open("GET", url, true); // Method, URL, Asynchronous (true)
+
+    // --- CSRF Token for GET Requests ---
+    const csrfToken = getCookie("csrftoken");
+    if (csrfToken) {
+      xhr.setRequestHeader("X-CSRFToken", csrfToken); // Usually NOT needed for GET
+    }
+
+    // Define the function to handle the response
+    xhr.onload = function () {
+      console.log(`DEBUG: AJAX GET status for ${url}: ${xhr.status}`);
+
+      let responseData = xhr.responseText;
+      let isJson = false;
+
+      try {
+        // Attempt to parse the response text as JSON
+        responseData = JSON.parse(xhr.responseText);
+        isJson = true;
+        console.log(`DEBUG: Successfully parsed JSON response for ${url}:`, responseData);
+      } catch (e) {
+        console.warn(`Could not parse JSON response for ${url}:`, e);
+        // If JSON parsing fails, responseData remains the raw text
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // HTTP success status (2xx)
+        resolve([true, responseData]); // Resolve with success status and the parsed/raw response data
+      } else {
+        // HTTP error status (non-2xx)
+        console.error(`HTTP Error for ${url}: ${xhr.status} ${xhr.statusText}`);
+        // Resolve with false status and the error response (parsed JSON or raw text)
+        resolve([false, responseData]);
+      }
+    };
+
+    // Define the function to handle network errors
+    xhr.onerror = function () {
+      console.error(`Network Error for ${url}.`);
+      reject([false, "Network Error"]); // Reject the promise on network errors
+    };
+
+    // Define the function to handle request timeouts
+    xhr.ontimeout = function () {
+      console.error(`Request Timeout for ${url}.`);
+      reject([false, "Request Timeout"]); // Reject the promise on timeout
+    };
+
+    // Send the request
+    // For GET requests, the send() method takes no arguments.
+    xhr.send();
+    console.log(`DEBUG: Sending GET request to ${url}.`);
+  });
+}
+
+/**
  * Sends an AJAX POST request to a specified URL with JSON data.
  *
  * @param {string} api_url - The API endpoint URL.
@@ -162,6 +242,42 @@ function getCookie(name) {
     }
   }
   return cookieValue;
+}
+
+function timeAgo(date) {
+  const now = Date.now(); // Current time in milliseconds
+  const timeDifference = now - new Date(date);
+
+  const days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+  const timeAgoParts = [];
+  console.log("Time difference:", now, " - ", new Date(date), " = ", timeDifference, "ms");
+
+  if (days > 0) {
+    timeAgoParts.push(`${days} ${days === 1 ? "día" : "días"}`);
+  }
+  if (hours > 0) {
+    timeAgoParts.push(`${hours} ${hours === 1 ? "hora" : "horas"}`);
+  }
+  if (minutes > 0) {
+    timeAgoParts.push(`${minutes} ${minutes === 1 ? "minuto" : "minutos"}`);
+  }
+  if (seconds > 0 && timeAgoParts.length === 0) {
+    timeAgoParts.push(`${seconds} ${seconds === 1 ? "segundo" : "segundos"}`);
+  }
+
+  if (timeAgoParts.length > 0) {
+    if (timeAgoParts.length > 1) {
+      return `hace ${timeAgoParts.slice(0, -1).join(", ")} y ${timeAgoParts[timeAgoParts.length - 1]}`;
+    } else {
+      return `hace ${timeAgoParts[0]}`;
+    }
+  } else {
+    return "justo ahora";
+  }
 }
 
 /**

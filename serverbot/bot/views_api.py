@@ -16,6 +16,8 @@ from .utils.commands_utils import *
 from .utils.programs_utils import *
 from .utils.activity_utils import *
 from .utils.messages_utils import *
+from .utils.clients_utils import *
+from .utils.user_utils import *
 from .utils.APIResponse import (
     SuccessResponse,
     BadMethodErrorResponse,
@@ -24,13 +26,14 @@ from .utils.APIResponse import (
     ErrorResponse,
     ForbiddenErrorResponse, ValidationErrorResponse, UnauthorizedResponse, check_None_API, BadRequestResponse,
 )
-from .models import Command, Client, UserSettings
+from .models import Command, Client, UserSettings, user_to_dict
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 
-from .utils.utils import check_None, send_client_get_request, send_client_post_request
+from .utils.utils import check_None
+from .utils.clients_utils import send_client_get_request, send_client_post_request
 
 # Dict to store avalilable and loaded commands to avoid DB queries.
 logger = logging.getLogger(__name__)
@@ -100,9 +103,6 @@ def api_update_commands_list(request):
         return UnauthorizedResponse(f"{user} is not allowed to access {client_obj}.").to_response()  # 200 OK
 
     # --- Update the commands list for the client ---
-    # Get the list of commands from the database
-    logger.debug(f"api_update_commands_list() - Fetching command list for client {client_obj}.")
-
     # Send the GET request to the client application on the endpoint 'api/command/list'
     commands_api_endpoint = "api/command/list"  # Endpoint to fetch the command list
     command_list, status_code = send_client_get_request(client_obj, commands_api_endpoint)
@@ -298,6 +298,37 @@ def api_execute_command(request):
         api_response = InternalErrorResponse(
             f"Ocurrió un error inesperado al procesar el comando '{command_id}'.", error=str(e))
         return JsonResponse(api_response.to_dict(), status=500)
+
+
+# Get all commands from the database for the request.user
+@login_required
+@csrf_protect
+@require_GET
+def api_get_command_list(request):
+    """
+    API URL: api/command/list
+    API endpoint to get the list of commands for a specific client.
+    Requires authentication and CSRF token.
+    Expects JSON body with 'client_id'.
+    """
+    # This view only supports GET requests
+    _method = 'GET'
+    if not request:
+        return _method
+
+    # Get the client_id from the request data
+    client_id = request.user.id
+
+    # Get commands from user
+    commands, code = get_command_list_by_user(client_id)
+    if code != 200:
+        logger.error(f"api_get_command_list() - Failed to retrieve command list for user {client_id}.")
+        return NotFoundResponse(commands).to_response()
+    logger.debug(f"api_get_command_list() - Successfully retrieved command list for user {client_id}.")
+    # Convert the command list to a list of dictionaries
+    command_list = [command.to_dict() for command in commands]
+    # Return the command list as a JSON response
+    return SuccessResponse("Successfully retrieved command list for user {client_id}.", command_list)  # 200 OK
 
 
 # ---- Program API ----
@@ -692,7 +723,7 @@ def api_get_activity_list_from_user(request):
             return response
 
         # Get the list of activities from the database
-        activities, code = get_activities_from_user(user_id)
+        activities, code = get_activities_by_user(user_id)
         if code != 200:
             logger.error(f"get_activity_list_from_user() - Failed to retrieve activities for user {user_id}.")
             return InternalErrorResponse(activities).to_response()
@@ -706,7 +737,7 @@ def api_get_activity_list_from_user(request):
 # Endpoint to create an activity
 @require_POST
 @csrf_protect
-@login_required 
+@login_required
 def api_create_activity(request):
     """
     API URL: api/activities/create
@@ -773,7 +804,7 @@ def api_create_activity(request):
 # Endpoint to update an activity given the id and the parameters
 @require_POST
 @csrf_protect
-@login_required 
+@login_required
 def api_update_activity(request):
     """
     API URL: api/activities/update
@@ -824,7 +855,7 @@ def api_update_activity(request):
 # Endpoint to delete an activity given the id
 @require_POST
 @csrf_protect
-@login_required 
+@login_required
 def api_delete_activity(request):
     """
     API URL: api/activities/delete
@@ -1087,7 +1118,7 @@ def api_create_message(request):
         for key in data.keys():
             if key in expected_fields:
                 parameters[key] = data[key]
-        #parameters['user_id'] = 3 # Faking the user for testing purposes
+        # parameters['user_id'] = 3 # Faking the user for testing purposes
         parameters['user_id'] = request.user.id  # TODO Get the currently authenticated user
 
         # Create the message in the database
@@ -1108,7 +1139,7 @@ def api_create_message(request):
 # Endpoint to update a message given the id and the parameters
 @require_POST
 @csrf_protect
-@login_required 
+@login_required
 def api_update_message(request):
     """
     API URL: api/messages/update
@@ -1155,7 +1186,7 @@ def api_update_message(request):
 # Endpoint to delete a message given the id
 @require_POST
 @csrf_protect
-@login_required 
+@login_required
 def api_delete_message(request):
     """
     API URL: api/messages/delete
@@ -1191,3 +1222,199 @@ def api_delete_message(request):
             return InternalErrorResponse(message).to_response()
         logger.debug(f"delete_message_by_id() - Successfully deleted message with ID: {message_id}")
         return SuccessResponse(f"Successfully deleted message with ID: {message_id}").to_response()
+
+
+# ---- User API ----
+@require_GET
+@csrf_exempt  # TODO Remove this decorator on production
+def api_get_user_list(request):
+    """
+    API URL: api/users/list
+    API endpoint to get the list of users.
+    """
+    # This view only supports GET requests
+    _method = 'GET'
+    if not request:
+        return _method
+    if request.method == 'GET':
+        # Get the list of users from the database
+        users, code = get_users()
+        if code != 200:
+            logger.error(f"get_user_list() - Failed to retrieve user list.")
+            return InternalErrorResponse("Failed to retrieve user list.").to_response()
+
+        # Convert the QuerySet of User objects into a list of dictionaries using to_dict()
+        user_list_data = [user_to_dict(user) for user in users]
+
+        # If the request was successful, return the list of users
+        logger.debug(f"get_user_list() - Successfully retrieved user list: {user_list_data}")
+        return SuccessResponse("Successfully retrieved user list.", user_list_data).to_response()
+
+
+# Endpoint to get a user by its ID
+@require_POST
+@csrf_exempt  # TODO Remove this decorator on production
+def api_get_user_by_id(request):
+    """
+    API URL: api/users
+    API endpoint to get a user by its ID.
+    Receives JSON data with 'user_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the user_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_user_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_user_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the user_id from the JSON body
+        user_id = data.get('user_id')
+        if not isinstance(user_id, int):
+            logger.error("get_user_by_id() - Invalid user_id format received.")
+            return ErrorResponse("Invalid user_id format received.").to_response()
+
+        # Get the user from the database
+        user, code = get_user_by_id(user_id)
+        if code != 200:
+            logger.error(f"get_user_by_id() - Failed to retrieve user with ID {user_id}.")
+            return InternalErrorResponse(user).to_response()
+        # Convert the User object into a dictionary using to_dict()
+        user_data = user_to_dict(user)
+        # If the request was successful, return the user data
+        logger.debug(f"get_user_by_id() - Successfully retrieved activity data: {user_data}")
+        return SuccessResponse("Successfully retrieved activity data.", user_data).to_response()
+
+
+# Endpoint to update a user given the id and the parameters
+@require_POST
+@csrf_exempt  # TODO Remove this decorator on production
+def api_update_user(request):
+    """
+    API URL: api/users/update
+    API endpoint to update a user by its ID.
+    Receives JSON data with 'user_id', 'first_name', and 'last_name', 'username', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the user data from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"update_user_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("update_user_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Check required fields
+        if 'user_id' not in data:
+            logger.error("update_user_by_id() - Missing 'user_id' in request data.")
+            return BadRequestResponse("Missing 'user_id' in request data.").to_response()
+
+        # Optional fields to be updated
+        expected_types = {
+            'user_id': int,
+            'username': str,
+            'first_name': str,
+            'last_name': str,
+            'email': str,
+            'is_active': bool,
+            'is_staff': bool,
+            'is_superuser': bool,
+            'groups': list,
+            'user_permissions': list,
+        }
+
+        # Add to parameters variable the available fields in the request
+        parameters = {}
+        for key, expected_type in expected_types.items():
+            if key in data:
+                if isinstance(data[key], expected_type):
+                    parameters[key] = data[key]
+
+        # Update the user in the database
+        user, code = update_user(parameters['user_id'], parameters)
+        if code != 200:
+            logger.error(f"update_user_by_id() - Failed to update user with ID {parameters['user_id']}.")
+            return InternalErrorResponse(user).to_response()
+        # Convert the User object into a dictionary using to_dict()
+        user_data = user_to_dict(user)
+        # If the request was successful, return the user data
+        logger.debug(f"update_user_by_id() - Successfully updated user data: {user_data}")
+        return SuccessResponse("Successfully updated user data.", user_data).to_response()
+
+
+# ---- Client API ----
+@require_GET
+@csrf_exempt  # TODO Remove this decorator on production
+def api_get_client_list(request):
+    """
+    API URL: api/clients/list
+    API endpoint to get the list of clients.
+    """
+    # This view only supports GET requests
+    _method = 'GET'
+    if not request:
+        return _method
+    if request.method == 'GET':
+        # Get the list of clients from the database
+        # clients, code = get_clients_by_user(request.user) # On production, get user from request
+        print(request.GET)
+        clients, code = get_clients_by_user(int(request.GET['user_id']))
+        if code != 200:
+            logger.error(f"get_client_list() - Failed to retrieve client list.")
+            return InternalErrorResponse(clients).to_response()
+
+        # Convert the QuerySet of Client objects into a list of dictionaries using to_dict()
+        client_list_data = [client.to_dict() for client in clients]
+
+        # If the request was successful, return the list of clients
+        logger.debug(f"get_client_list() - Successfully retrieved client list: {client_list_data}")
+        return SuccessResponse("Successfully retrieved client list.", client_list_data).to_response()
+
+
+# Endpoint to get a client by its ID
+@require_POST
+@csrf_exempt  # TODO Remove this decorator on production
+def api_get_client_by_id(request):
+    """
+    API URL: api/clients
+    API endpoint to get a client by its ID.
+    Receives JSON data with 'client_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the client_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"get_client_by_id() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("get_client_by_id() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the client_id from the JSON body
+        client_id = data.get('client_id')
+        if not isinstance(client_id, int):
+            logger.error("get_client_by_id() - Invalid client_id format received.")
+            return ErrorResponse("Invalid client_id format received.").to_response()
+
+        # Get the client from the database
+        client, code = get_client_by_id(client_id)
+        if code != 200:
+            logger.error(f"get_client_by_id() - Failed to retrieve client with ID {client_id}.")
+            return InternalErrorResponse(client).to_response()
+        # Convert the Client object into a dictionary using to_dict()
+        client_data = client.to_dict()
+        # If the request was successful, return the client data
+        logger.debug(f"get_client_by_id() - Successfully retrieved activity data: {client_data}")
+        return SuccessResponse("Successfully retrieved activity data.", client_data).to_response()

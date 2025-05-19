@@ -24,11 +24,11 @@ def login_view(request):
 
 
 def homePage(request):
-    activities = Activity.objects.all()
-    programs = Program.objects.all()
     user = request.user
-    commands = Command.objects.all()
-    logger.debug(f"User: {user}, Activities: {activities}, Programs: {programs}, Commands: {commands}")
+    # Check if the user is authenticated
+    if not user.is_authenticated:
+        # If the user is not authenticated, user is none
+        user = None
 
     # Ruta del directorio donde están los componentes
     components_dir = os.path.join(settings.BASE_DIR, 'bot', 'templates', 'bot', 'dynamic_components')
@@ -46,7 +46,7 @@ def homePage(request):
     #         context = {'error': message}
     #         return error_page_view(request, context['error'])
     # If the server was initialized successfully, we can render the home page
-    context = {'activities': activities, 'programs': programs, 'commands': commands, 'dynamic_components': components, 'user': user}
+    context = {'dynamic_components': components, 'user': user}
     return render(request, 'bot/home.html', context)
 
 
@@ -116,22 +116,55 @@ def error_page():
 
 
 def component_programs_view(request):
-    programs = Program.objects.all()
-    # utils.send_request_to_client(path)
-    programs_state = utils.refresh_processes_status()
-    now_str = localtime(timezone.now()).strftime("%H:%M:%S")
-    print(f"now: {now_str}, programs: {len(programs_state['keys']) > 0}")
-    context = {'programs': programs, 'now_date': now_str, 'programs_state': programs_state}
+    """
+    Retrieves all Program objects from the database and renders the 'component_program.html' template with the programs in the context.
+    """
+    # Get all Program objects from the database
+    programs, code = programs_utils.get_program_list_by_user(request.user.id)
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Programs not found. Error: {programs}")
+    # Convert the programs to a list of dictionaries
+    programs_list = [program.to_dict() for program in programs]
+    # Render the template with the programs in the context
+    context = {'programs': programs_list}
     return render(request, 'bot/component_program.html', context=context)
 
 
-def commponent_commands_view(request):
+def component_commands_view(request):
     """
     Retrieves all Command objects from the database and renders the
     component_command.html template with the commands in the context.
     """
     # Get all Command objects from the database
-    commands = commands_utils.get
+    commands, code = commands_utils.get_command_list_by_user(request.user.id)
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Commands not found. Error: {commands}")
+    # Convert the commands to a list of dictionaries
+    commands_list: list[Command] = [command.to_dict() for command in commands]
+    # Render the template with the commands in the context
+    context = {'commands': commands_list}
+    return render(request, 'bot/component_command.html', context=context)
+
+
+def component_activities_view(request):
+    """
+    Retrieves all Activity objects from the database and renders the 'component_activity.html' template with the activities in the context.
+    """
+
+    # Get all Activity objects from the database
+    activities, code = activity_utils.get_activities_by_user(request.user.id)
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Activities not found. Error: {activities}")
+
+    # Convert the activities to a list of dictionaries
+    activities_list = [activity.to_dict() for activity in activities]
+    #activities_list = []
+    # Render the template with the activities in the context
+    context = {'activities': activities_list}
+    return render(request, 'bot/component_activity.html', context=context)
 
 
 def about_view(request):

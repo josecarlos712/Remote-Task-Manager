@@ -25,3 +25,5 @@ login_tokens = {}  # Store valid tokens
 CONFIG_PATH = 'config/programs.json'
 VALID_TOKENS = []
 SERVER_INITIALIZATION = True  # This variable is used to check if the server is loading. There is a function it needs to run once the server is loaded, and it needs to be run only once.
+last_command_update = None
+last_program_update = None

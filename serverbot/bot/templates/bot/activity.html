@@ -104,42 +104,6 @@
       }
     });
   }
-
-  function timeAgo(date) {
-    const now = Date.now(); // Current time in milliseconds
-    const timeDifference = now - new Date(date);
-
-    const days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
-
-    const timeAgoParts = [];
-    console.log("Time difference:", now, " - " , new Date(date) , " = ", timeDifference, "ms");
-
-    if (days > 0) {
-      timeAgoParts.push(`${days} ${days === 1 ? "día" : "días"}`);
-    }
-    if (hours > 0) {
-      timeAgoParts.push(`${hours} ${hours === 1 ? "hora" : "horas"}`);
-    }
-    if (minutes > 0) {
-      timeAgoParts.push(`${minutes} ${minutes === 1 ? "minuto" : "minutos"}`);
-    }
-    if (seconds > 0 && timeAgoParts.length === 0) {
-      timeAgoParts.push(`${seconds} ${seconds === 1 ? "segundo" : "segundos"}`);
-    }
-
-    if (timeAgoParts.length > 0) {
-      if (timeAgoParts.length > 1) {
-        return `hace ${timeAgoParts.slice(0, -1).join(", ")} y ${timeAgoParts[timeAgoParts.length - 1]}`;
-      } else {
-        return `hace ${timeAgoParts[0]}`;
-      }
-    } else {
-      return "justo ahora";
-    }
-  }
 </script>
 <style>
   /* Define CSS Variables for colors */
