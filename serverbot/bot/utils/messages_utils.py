@@ -290,10 +290,44 @@ def get_messages_from_activity(activity_id: int) -> tuple[str, int] | tuple[Quer
             logger.debug(f"Failed to retrieve messages from activity {existing_activity}")
             return f"Failed to retrieve messages from activity {existing_activity}", 500
 
-        logger.debug(f"Successfully retrieved {messages.count()} messages in activity with ID: {activity_id} | {existing_activity}")
+        logger.debug(
+            f"Successfully retrieved {messages.count()} messages in activity with ID: {activity_id} | {existing_activity}")
         return messages, 200  # OK
 
     except Exception as e:
         logger.error(f"Error retrieving messages in activity '{activity_id}': {e}", exc_info=True)
         return f"Error retrieving messages in activity '{activity_id}': {e}", 500  # Internal Server Error
 
+
+def post_like_to_message(message_id: int, user_id: int) -> tuple[list | str, int]:
+    """
+    Post a like to a message.
+
+    args: message_id (int): ID of the message to be liked.
+          user_id (int): ID of the user who is liking the message.
+
+    returns: tuple. (Success message/error message, status code).
+    """
+    logger.info(f"Attempting to like message with ID: {message_id} by user with ID: {user_id}")
+    # Check if the user exists in the database
+    existing_user, code = get_user_by_id(user_id)
+    if code != 200:
+        return existing_user, code  # Return the error message and status code if user not found
+
+    # Get the message by ID
+    existing_message, code = get_message_by_id(message_id)
+    if code != 200:
+        return existing_message, code  # Return the error message and status code if message not found
+
+    try:
+        # Start a transaction to ensure atomicity
+        with transaction.atomic():
+            # Add the user ID to the likes list of the message
+            if user_id in existing_message.likes:
+                return existing_message.likes, 200
+            existing_message.likes.append(user_id)
+            logger.info(f"User with ID {user_id} liked message with ID {message_id}.")
+            return existing_message.likes, 200  # Returns the updated likes list
+    except Exception as e:
+        logger.error(f"Error liking message '{message_id}' by user '{user_id}': {e}", exc_info=True)
+        return "There was an internal error liking the message", 500  # Internal Server Error

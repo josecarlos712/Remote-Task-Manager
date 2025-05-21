@@ -9,6 +9,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings  # Import settings to reference the AUTH_USER_MODEL
 from django.utils import timezone
 
+from .utils import user_utils
+
 # Loads the logger
 logger = logging.getLogger(__name__)
 
@@ -311,6 +313,7 @@ class Activity(models.Model):
         return {
             'id': self.pk,  # Include the primary key
             'name': self.name,
+            'title': self.title,
             'description': self.description,
             'user_name': user_name,
             'number_of_messages': Message.objects.filter(activity=self).count(),  # Count messages related to this activity
@@ -326,6 +329,13 @@ class Message(models.Model):  # One message can have only one activity and user
     # CASCADE deletes all messages if the activity is deleted
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, null=True, blank=False)
     body = models.TextField(blank=True, default="")
+    # Likes is a list of users who liked the message. It stores the user ID.
+    likes = models.JSONField(
+        default=list,  # Use the callable 'list' for a mutable default (empty list)
+        blank=True,  # Allow the field to be blank in forms
+        null=True,  # Allow the field to be null in the database (though default=list makes this less likely needed)
+        help_text="A list of user IDs who liked this message."
+    )
     # It refreshes with the system time
     updated = models.DateTimeField(default=timezone.now)
     # It refreshes the time only when its created
@@ -344,6 +354,13 @@ class Message(models.Model):  # One message can have only one activity and user
         user_username = self.user.username if self.user else None
         activity_id = self.activity.pk if self.activity else None
         activity_name = self.activity.name if self.activity else None
+
+        like_users = []
+        for user_id in self.likes:
+            user, code = user_utils.get_user_by_id(user_id)  # Get user object by ID
+            if code == 200:
+                like_users.append(user.username)
+
         # room_id = self.room.pk if hasattr(self, 'room') and self.room else None # If Room FK exists
         # room_name = self.room.name if hasattr(self, 'room') and self.room else None # If Room FK exists
 
@@ -354,6 +371,7 @@ class Message(models.Model):  # One message can have only one activity and user
             'activity_id': activity_id,
             'activity_name': activity_name,
             'body': self.body,
+            'likes': like_users,  # List of user IDs who liked the message
             'updated': self.updated.isoformat() if self.updated else None,  # Format datetime
             'created': self.created.isoformat() if self.created else None,  # Format datetime
         }

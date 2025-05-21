@@ -1,7 +1,7 @@
 {% extends 'main.html' %} {% block title %}{{ activity.name }}{% endblock %} {% block baseblock %}
 <div class="main-container">
   <h1>{{ activity.name }}</h1>
-  <p class="activity-meta">Creado por {{ activity.user_name }} <span class="date-ago" data-date="{{ activity.created }}">{{ activity.created|date:"d M Y H:i" }}</span></p>
+  <p class="activity-meta">Creado por {% if activity.user_name %}@{{ activity.user_name }}{% else %} [eliminado] {% endif %} <span class="date-ago" data-date="{{ activity.created }}">{{ activity.created|date:"d M Y H:i" }}</span></p>
   <div class="activity-description">
     <p>{{ activity.description }}</p>
     <ul>
@@ -13,7 +13,7 @@
   </div>
 
   <hr />
-
+  {% if user.is_authenticated %}
   <div class="new-message-area">
     <h3>Publicar un nuevo mensaje</h3>
     <form method="post" id="messageForm">
@@ -23,6 +23,16 @@
       <button type="submit">Publicar</button>
     </form>
   </div>
+  {% else %}
+  <div class="new-message-area">
+    <h3>Publicar un nuevo mensaje</h3>
+    <form method="post" id="messageForm">
+      {% csrf_token %}
+      <input type="hidden" name="activity_id" value="{{ activity.id }}" />
+      <textarea name="message" placeholder="Necesitas estar registrado para publicar mensajes en la actividad." required disabled></textarea>
+    </form>
+  </div>
+  {% endif %}
   <div class="chat-history">
     <h3>Histórico de Chat</h3>
     {% for message in messages %}
@@ -37,7 +47,13 @@
         <a><img id="message-image-{{ forloop.counter }}" src="{{ message.image.url }}" alt="Imagen" width="20%" /></a>
         {% endif %}
       </div>
-      <div class="message-actions">Me gusta: <span class="like-count">{{ message.likes }}</span> <span class="like-button">❤️</span></div>
+
+      <div class="message-actions">
+        Me gusta:&nbsp;<span class="like-count" id="message-{{message.id}}-likes-count">{{ message.likes|length }}</span>
+        {% if user.is_authenticated %}
+        <span class="like-button" onclick="postMessageLike({{message.id}})">❤️</span>
+        {% endif %} <span id="message-{{ message.id }}-likes">{% if message.likes|length > 0 %}({% for user_id in message.likes|slice:":6" %}{{ user_id }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if message.likes|length > 6 %}...{% endif %}){% endif %}</span>
+      </div>
     </div>
     {% empty %}
     <p>No hay mensajes aún.</p>
@@ -104,20 +120,37 @@
       }
     });
   }
+
+  // Function to post a message like
+  function postMessageLike(messageId) {
+    const content = {
+      message_id: messageId,
+      user_id: "{{ user.id }}",
+    };
+
+    sendAjaxPostRequestJson("api/messages/like", content)
+      .then(([success, response]) => {
+        if (success) {
+          console.log("Message liked successfully:", response);
+          // Update the like count and like list in the UI
+          const likeCountElement = document.getElementById(`message-${messageId}-likes-count`);
+          const likeListElement = document.getElementById(`message-${messageId}-likes`);
+          // response is a list of users names. convert it to a string.
+          const likeList = "(" + response['data'].map((user) => user).join(", ") + ")";
+          // update the like count
+          likeCountElement.textContent = response['data'].length;
+          // update the like list
+          likeListElement.textContent = likeList;
+        } else {
+          console.error("Error liking message:", response);
+        }
+      })
+      .catch((error) => {
+        console.error("AJAX request failed:", error);
+      });
+  }
 </script>
 <style>
-  /* Define CSS Variables for colors */
-  :root {
-    --color-text-inv: black; /* Light blue */
-    --color-text: white;
-    --color-text-body: #dbdbdb;
-    --color-background: #0f0f0f; /* Green */
-    --color-background-container: #303030; /* Dark gray */
-    --color-foregroud: #ccc; /* Light gray */
-    --color-error: red;
-    --color-success: #bbffb6;
-  }
-
   /* Basic styling for the main container */
   .main-container {
     max-width: 800px; /* Adjust max-width based on typical content width */

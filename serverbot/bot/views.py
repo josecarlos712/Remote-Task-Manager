@@ -69,6 +69,7 @@ def error_page_view(request, error_message=None):
     return render(request, 'bot/error.html', context)
 
 
+# ---- Activity ----
 def activity_page(request, pk):
     pk = int(pk)
     activity, code = activity_utils.get_activity_by_id(pk)
@@ -87,6 +88,37 @@ def activity_page(request, pk):
 
     context = {'activity': activity_dict, 'messages': messages_list}
     return render(request, 'bot/activity.html', context)
+
+
+def component_activities_view(request):
+    """
+    Retrieves all Activity objects from the database and renders the 'component_activity.html' template with the activities in the context.
+    """
+    # Return all activities if the user is not authenticated
+    activities, code = activity_utils.get_activities()
+    if code != 200:
+        # Handle the error case, e.g., redirect to an error page or show a message
+        return error_page_view(request, f"Activities not found. Error: {activities}")
+
+    # Convert the activities to a list of dictionaries
+    activities_list = [activity.to_dict() for activity in activities]
+    #activities_list = []
+    # Render the template with the activities in the context
+    context = {'activities': activities_list}
+    return render(request, 'bot/component_activity.html', context=context)
+
+
+def create_activity_view(request):
+    """
+    Renders the 'create_activity.html' template for creating a new activity.
+    """
+    # Check if the user is authenticated
+    if not request.user.is_authenticated:
+        # If the user is not authenticated, redirect to the login page
+        return redirect('login')
+
+    # Render the template for creating a new activity
+    return render(request, 'bot/create_activity.html')
 
 
 def cooking(request):
@@ -146,25 +178,6 @@ def component_commands_view(request):
     # Render the template with the commands in the context
     context = {'commands': commands_list}
     return render(request, 'bot/component_command.html', context=context)
-
-
-def component_activities_view(request):
-    """
-    Retrieves all Activity objects from the database and renders the 'component_activity.html' template with the activities in the context.
-    """
-
-    # Get all Activity objects from the database
-    activities, code = activity_utils.get_activities_by_user(request.user.id)
-    if code != 200:
-        # Handle the error case, e.g., redirect to an error page or show a message
-        return error_page_view(request, f"Activities not found. Error: {activities}")
-
-    # Convert the activities to a list of dictionaries
-    activities_list = [activity.to_dict() for activity in activities]
-    #activities_list = []
-    # Render the template with the activities in the context
-    context = {'activities': activities_list}
-    return render(request, 'bot/component_activity.html', context=context)
 
 
 def about_view(request):

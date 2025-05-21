@@ -1,179 +1,281 @@
 {% load static %}
 <div class="commands-grid-container">
   <h3>
-    <button type="button" id="update-button" onclick="" alt="Refresh">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
+    <button type="button" class="button" id="update-button" onclick="" alt="Refresh">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
         <path
           d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
-          stroke="#000000"
+          stroke="white"
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
       </svg>
+    </button>
     <small>(last update: {{now_date|default:"None"}})</small>
   </h3>
-    {% for command in commands %}
-    <div class="command-item">
-      <a id="command-{{ command.id }}" class="card-link" onclick="execute_command({{ command.id }})">
-        <h3 class="card-title">{{command.name}}</h3>
-      </a>
-      <em>{{command.description}}</em>
-    </div>
-    {% empty %}
-    <div class="empty-message">
-      <p>No existen commandos disponibles para {{user.username}}</p>
-    </div>
-    {% endfor %}
-  <script>
-    // This function runs once the document (web page) is fully loaded
-    document.addEventListener("DOMContentLoaded", function () {
-      // Automatically load the component when the page is loaded
-      // loadProgramComponent(); // Uncomment if you have this function and need it to run on load
-      /**
-       * Attaches a click event listener to a button element by its ID.
-       * When the button is clicked, it calls the executeFunction with the provided function name.
-       *
-       * @param {string} buttonId - The ID of the button element.
-       * @param {string} functionName - The name of the server-side function to execute.
-       */
-      function loadCommand(buttonId, functionName) {
-        const button = document.getElementById(buttonId);
-        if (button) {
-          button.addEventListener("click", function () {
-            console.log(`DEBUG: Button with ID '${buttonId}' clicked. Executing function '${functionName}'.`);
-            executeFunction(functionName);
-          });
-        } else {
-          console.warn(`Button with ID '${buttonId}' not found. Cannot attach command listener.`);
-        }
-      }
-
-      // Attach click event listener to the update button
-      // When clicked, it will call executeFunction with the server-side function ID for updating programs
-      const updateButton = document.getElementById("update-button");
-      if (updateButton) {
-        updateButton.addEventListener("click", function () {
-          // TODO: Confirm the correct function ID for updating programs on the server
-          executeFunction("update_programs");
-        });
-      } else {
-        console.warn("Update button with ID 'update-button' not found.");
-      }
-
-      // Attach click event listener to the test button
-      // When clicked, it will call executeFunction with the server-side function ID for testing programs
-      const testButton = document.getElementById("test-button");
-      if (testButton) {
-        testButton.addEventListener("click", function () {
-          // TODO: Confirm the correct function ID for testing programs on the server
-          executeFunction("test_programs");
-        });
-      } else {
-        console.warn("Test button with ID 'test-button' not found.");
-      }
-
-      // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
-    });
-
-    function get_commands() {
-      // Get all commands from user
-      // Send a GET request to 'api/commands/list'
-      status, commands = sendAjaxGetRequestJson("api/commands/list");
-      if (status !== 200) {
-        console.error("Failed to fetch commands. Status code:", status);
-        return;
-      }
-      console.log("DEBUG: Commands fetched successfully:", commands);
-
-      const commands = {{ commands|safe }};
-      commands.forEach((command, index) => {
-        // Create a button for each command
-        const button = document.createElement("button");
-        button.id = `command-${index}`;
-        button.innerText = command.name;
+  {% for command in commands %}
+  <div class="command-item">
+    <a id="command-{{ command.id }}" class="card-link" onclick="execute_command({{ command.id }})">
+      <h3 class="card-title">{{command.name}}</h3>
+    </a>
+    <em>{{command.description}}</em>
+  </div>
+  {% empty %}
+  <div class="empty-message">
+    <p>No existen commandos disponibles para {{user.username}}</p>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  // This function runs once the document (web page) is fully loaded
+  document.addEventListener("DOMContentLoaded", function () {
+    // Automatically load the component when the page is loaded
+    // loadProgramComponent(); // Uncomment if you have this function and need it to run on load
+    /**
+     * Attaches a click event listener to a button element by its ID.
+     * When the button is clicked, it calls the executeFunction with the provided function name.
+     *
+     * @param {string} buttonId - The ID of the button element.
+     * @param {string} functionName - The name of the server-side function to execute.
+     */
+    function loadCommand(buttonId, functionName) {
+      const button = document.getElementById(buttonId);
+      if (button) {
         button.addEventListener("click", function () {
-          console.log(`DEBUG: Command '${command.name}' clicked.`);
-          sendCommandExecutionRequest(command.id);
+          console.log(`DEBUG: Button with ID '${buttonId}' clicked. Executing function '${functionName}'.`);
+          executeFunction(functionName);
         });
-        document.body.appendChild(button);
-      });
+      } else {
+        console.warn(`Button with ID '${buttonId}' not found. Cannot attach command listener.`);
+      }
     }
 
-    // Function to send the command execution request
-    function execute_command(commandId) {
-      // Retrieve the necesary parameters using the API
-      // Call the executeCommand function with the provided parameters
-      executeCommand(clientId, commandId, args, kwargs);
+    // Attach click event listener to the update button
+    // When clicked, it will call executeFunction with the server-side function ID for updating programs
+    const updateButton = document.getElementById("update-button");
+    if (updateButton) {
+      updateButton.addEventListener("click", function () {
+        // TODO: Confirm the correct function ID for updating programs on the server
+        executeFunction("update_programs");
+      });
+    } else {
+      console.warn("Update button with ID 'update-button' not found.");
+    }
+
+    // Attach click event listener to the test button
+    // When clicked, it will call executeFunction with the server-side function ID for testing programs
+    const testButton = document.getElementById("test-button");
+    if (testButton) {
+      testButton.addEventListener("click", function () {
+        // TODO: Confirm the correct function ID for testing programs on the server
+        executeFunction("test_programs");
+      });
+    } else {
+      console.warn("Test button with ID 'test-button' not found.");
+    }
+
+    // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
+  });
+
+  function get_commands() {
+    // Get all commands from user
+    // Send a GET request to 'api/commands/list'
+    status, commands = sendAjaxGetRequestJson("api/commands/list");
+    if (status !== 200) {
+      console.error("Failed to fetch commands. Status code:", status);
       return;
     }
-  </script>
-  <script src="{% static 'js/component_program.js' %}"></script>
-  <script src="{% static 'js/button_call_api.js' %}"></script>
-  <style>
-    /* Style for the grid container */
+    console.log("DEBUG: Commands fetched successfully:", commands);
+
+    const commands = {{ commands|safe }};
+    commands.forEach((command, index) => {
+      // Create a button for each command
+      const button = document.createElement("button");
+      button.id = `command-${index}`;
+      button.innerText = command.name;
+      button.addEventListener("click", function () {
+        console.log(`DEBUG: Command '${command.name}' clicked.`);
+        sendCommandExecutionRequest(command.id);
+      });
+      document.body.appendChild(button);
+    });
+  }
+
+  // Function to send the command execution request
+  function execute_command(commandId) {
+    // Retrieve the necesary parameters using the API
+    // Call the executeCommand function with the provided parameters
+    const url = "{% url 'api_execute_command' %}";
+    const clientId = {{ client_id }};
+    const commandId = {{ command.id }};
+    const args = {{ command.args|safe }};
+    const kwargs = {{ command.kwargs|safe }};
+    // Construct the JSON payload to send to the Django server
+    const jsonData = {
+      client_id: clientId,
+      command_id: commandId,
+      args: args, // Include positional arguments
+      kwargs: kwargs, // Include keyword arguments
+    };
+    console.log(`DEBUG: Executing command '${commandId}' on client ID '${clientId}' with args: ${args} and kwargs: ${kwargs}`);
+    // Call the function to execute the command
+    sendAjaxPostRequestJson(url, jsonData)
+      .then(([success, responseData]) => {
+        if (success) {
+          // Handle successful command execution
+          console.log("Command executed successfully:", responseData);
+          // Optionally, update the UI or show a success message
+        } else {
+          // Handle command execution failure
+          console.error("Command execution failed:", responseData);
+          // Optionally, show an error message to the user
+        }
+      })
+      .catch((error) => {
+        console.error("Error executing command:", error);
+        // Optionally, show an error message to the user
+      });
+    return;
+  }
+</script>
+<style>
+  .button {
+    width: packed; /* Adjust width to fit content */
+    background-color: var(--color-button); /* A standard blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .button:hover {
+    background-color: var(--color-button-hover); /* Darker blue on hover */
+    cursor: pointer;
+  }
+
+  .svg-icon {
+    display: block;
+    background-color: inherit; /* Inherit background color from button */
+    border-radius: 4px;
+    transition: background-color 0.3s ease; /* Smooth transition */
+  }
+
+  .commands-grid-container {
+    display: grid;
+    /* Default: 3 columns on larger screens */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px; /* Space between grid items */
+    padding: .5em; /* Optional: padding around the grid */
+    max-width: 1200px; /* Limit max width of the grid container */
+    margin: 0 auto; /* Center the grid container */
+  }
+
+  .command-item {
+    border: 1px solid var(--color-foregroud); /* Example: Add a border to each command item */
+    padding: 15px;
+    border-radius: 8px;
+    background-color: var(--color-background);
+    display: flex; /* Make the item a flex container */
+    flex-direction: column; /* Stack content vertically */
+    /* Ensure content doesn't overflow its own box */
+    overflow: hidden;
+  }
+
+  /* Fluid Typography for command Title */
+  .command-item h3 {
+    /* Scales from 1rem (min) to 1.2em (max), using 4vw as preferred value */
+    font-size: clamp(0.5rem, 4vw, 1.2em);
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--color-text);
+    word-wrap: break-word; /* Prevents long words from overflowing */
+  }
+
+  /* Fluid Typography for Meta Information */
+  .command-item .meta {
+    /* Scales from 0.75rem (min) to 0.85em (max), using 2.5vw as preferred value */
+    font-size: clamp(0.75rem, 2.5vw, 0.85em);
+    color: var(--color-text-body);
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+
+  /* Fluid Typography for Description */
+  .command-item p:not(.meta) {
+    /* Targets the description paragraph */
+    /* Scales from 0.85rem (min) to 0.95em (max), using 3vw as preferred value */
+    font-size: clamp(0.85rem, 3vw, 0.95em);
+    color: var(--color-text-body);
+    line-height: 1.5;
+    margin-bottom: 0;
+    flex-grow: 1; /* Allows description to take up available space */
+    word-wrap: break-word;
+  }
+
+  /* Style for the link wrapping the command title */
+  .command-item a {
+    text-decoration: none; /* Remove underline */
+    color: inherit; /* Inherit color from parent */
+    display: block; /* Make the link a block element */
+  }
+
+  /* Style for the date and time spans within meta */
+  .command-item .meta span {
+    margin-left: 5px; /* Add space between parts */
+  }
+
+  /* Styles for the empty message */
+  .empty-message {
+    text-align: center; /* Center the text */
+    padding: 40px; /* Increased padding */
+    grid-column: 1 / -1; /* Make it span across all grid columns */
+    color: var(--color-text-body); /* Use body text color */
+    font-size: 1.1em; /* Slightly larger font size */
+    font-style: italic; /* Italicize the text */
+    background-color: var(--color-background); /* Use background color */
+    border: 1px dashed var(--color-foregroud); /* Dashed border */
+    border-radius: 8px; /* Rounded corners */
+    margin: 20px auto; /* Center the block and add vertical margin */
+    max-width: 600px; /* Optional: Limit max width for better centering */
+    width: 100%; /* Ensure it takes full width up to max-width */
+  }
+
+  /* Ensure the paragraph inside empty-message doesn't have extra margin */
+  .empty-message p {
+    margin: 0;
+  }
+
+  /* --- Responsive Grid Adjustments --- */
+
+  /* For medium screens (e.g., tablets) - 2 columns */
+  @media (max-width: 1300px) {
     .commands-grid-container {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr); /* Creates 3 equal columns */
-      gap: 20px; /* Space between grid items */
-      padding: 20px; /* Optional: padding around the grid */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px; /* Slightly reduce gap */
     }
-  
+    /* Adjust padding for command items if needed on medium screens */
     .command-item {
-      border: 1px solid var(--color-foregroud); /* Example: Add a border to each activity item */
-      padding: 15px;
-      border-radius: 8px;
-      background-color: var(--color-background);
-      display: flex; /* Make the item a flex container */
-      flex-direction: column; /* Stack content vertically */
+      padding: 12px;
     }
-  
-    /* Adjust empty message for grid layout */
+  }
+
+  /* For small screens (e.g., mobile phones) - 1 column */
+  @media (max-width: 800px) {
+    .commands-grid-container {
+      grid-template-columns: 1fr; /* Single column */
+      gap: 10px; /* Further reduce gap */
+    }
+    /* Adjust padding for command items on small screens */
+    .command-item {
+      padding: 10px;
+    }
+    /* Adjust empty message padding for smaller screens */
     .empty-message {
-      grid-column: 1 / -1; /* Make the empty message span all columns */
-      /* ... your existing empty-message styles ... */
+      padding: 20px;
     }
-  
-    /* Optional: Responsiveness for smaller screens */
-    @media (max-width: 900px) {
-      .activities-grid-container {
-        grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
-      }
-    }
-  
-    @media (max-width: 600px) {
-      .activities-grid-container {
-        grid-template-columns: 1fr; /* 1 column on small screens */
-      }
-    }
-
-    /* Style for the card title */
-    .card-title {
-      font-size: 1.5em; /* Adjust the font size as needed */
-      color: var(--color-foreground); /* Example: Use a foreground color */
-      margin-bottom: 10px; /* Space below the title */
-    }
-
-    /* Style for the card container */
-    .vertical-container {
-      display: flex;
-      flex-direction: column;
-      gap: 20px; /* Space between card items */
-      padding: 20px; /* Optional: padding around the grid */
-    }
-
-    .card {
-      border: 1px solid var(--color-foreground); /* Example: Add a border to each activity item */
-      padding: 15px;
-      border-radius: 8px;
-      background-color: var(--color-background);
-      display: flex; /* Make the item a flex container */
-      flex-direction: column; /* Stack content vertically */
-    }
-
-    .card-link {
-      text-decoration: none; /* Remove underline */
-    }
-      color: inherit; /* Inherit color from parent */
-    }
-</div>
+  }
+</style>

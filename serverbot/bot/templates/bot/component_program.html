@@ -1,22 +1,19 @@
 {% load static %}
-<div class="programs-container">
+<div class="programs-grid-container">
   <h3>
-    <h3>
-      <button type="button" id="update-button" onclick="" alt="Refresh">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
-            stroke="#000000"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-      <small>(last update: {{now_date|default:"None"}})</small>
-    </h3>
+    <button type="button" class="button" id="update-button" onclick="" alt="Refresh">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
+        <path
+          d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
+          stroke="white"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+    <small>(last update: {{now_date|default:"None"}})</small>
   </h3>
-
   {% for program in programs %}
   <div class="program-item">
     <a href="#" class="card-link" onclick="fetchProgramDetails({{ program.id }}); return false;">
@@ -49,28 +46,30 @@
     $("#test-button").click(testPrograms);
   });
 
-  function getProgramsStatus() {
-    fetch(`{% url 'refresh_processes_status' %}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken"),
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        $("#programs_console").html("");
-        // Replace the content of the element with id 'component_programs' with the new HTML
-        $("#programs_console").text(data);
+  function fetchProgramDetails(programId) {
+    const url = `/api/programs/${programId}/details/`; // Adjust the URL as needed
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
       })
-      .catch((error) => {});
+      .then((data) => {
+        // Handle the program details data here
+        console.log("Program Details:", data);
+        // You can update the UI or display a modal with the program details
+      })
+      .catch((error) => {
+        console.error("Error fetching program details:", error);
+      });
   }
 
   // This function still uses fetch as per your original code.
   // If you prefer to use sendAjaxPostRequest for this, it would need adaptation
   // as sendAjaxPostRequest is designed for JSON responses with a 'status' or 'success' field.
   function getProgramsStatus() {
-    fetch(`{% url 'refresh_processes_status' %}`, {
+    fetch(`{% url 'api_refresh_processes_status' %}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,26 +109,26 @@
       });
 
     /**
-     * Sends a request to the Django API to execute a command on a specific client.
+     * Sends a request to the Django API to execute a program on a specific client.
      *
      * @param {string | number} clientId The ID (primary key) of the Client model instance.
-     * @param {string} commandId The unique command_id of the command on the client application.
-     * @param {Array<any>} [args=[]] Optional list of positional arguments for the command.
-     * @param {object} [kwargs={}] Optional dictionary of keyword arguments for the command.
+     * @param {string} programId The unique program_id of the program on the client application.
+     * @param {Array<any>} [args=[]] Optional list of positional arguments for the program.
+     * @param {object} [kwargs={}] Optional dictionary of keyword arguments for the program.
      */
-    function executeCommand(clientId, commandId, args = [], kwargs = {}) {
-      // TODO: Ensure the URL pattern for the command execution API is correct in your Django urls.py
-      const url = "/api/commands/execute/"; // The API endpoint URL
+    function executeprogram(clientId, programId, args = [], kwargs = {}) {
+      // TODO: Ensure the URL pattern for the program execution API is correct in your Django urls.py
+      const url = "/api/programs/execute/"; // The API endpoint URL
 
       // Construct the JSON payload to send to the Django server
       const jsonData = {
         client_id: clientId,
-        command_id: commandId,
+        program_id: programId,
         args: args, // Include positional arguments
         kwargs: kwargs, // Include keyword arguments
       };
 
-      console.log(`DEBUG: Preparing to send command execution request for command '${commandId}' on client ID '${clientId}'.`);
+      console.log(`DEBUG: Preparing to send program execution request for program '${programId}' on client ID '${clientId}'.`);
       console.log("DEBUG: Payload:", jsonData);
 
       // Use the sendAjaxPostRequestJson function to send the request
@@ -138,29 +137,136 @@
     }
   }
 </script>
-<script src="{% static 'js/component_program.js' %}"></script>
-<script src="{% static 'js/button_call_api.js' %}"></script>
 <style>
-  /* Style for the grid container */
-  .commands-grid-container {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Creates 3 equal columns */
-    gap: 20px; /* Space between grid items */
-    padding: 20px; /* Optional: padding around the grid */
+  .button {
+    width: packed; /* Adjust width to fit content */
+    background-color: var(--color-button); /* A standard blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
   }
 
-  .command-item {
-    border: 1px solid var(--color-foregroud); /* Example: Add a border to each activity item */
+  .button:hover {
+    background-color: var(--color-button-hover); /* Darker blue on hover */
+    cursor: pointer;
+  }
+
+  .programs-grid-container {
+    display: grid;
+    /* Default: 3 columns on larger screens */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px; /* Space between grid items */
+    padding: 0.5em; /* Optional: padding around the grid */
+    max-width: 1200px; /* Limit max width of the grid container */
+    margin: 0 auto; /* Center the grid container */
+  }
+
+  .program-item {
+    border: 1px solid var(--color-foregroud); /* Example: Add a border to each program item */
     padding: 15px;
     border-radius: 8px;
     background-color: var(--color-background);
     display: flex; /* Make the item a flex container */
     flex-direction: column; /* Stack content vertically */
+    /* Ensure content doesn't overflow its own box */
+    overflow: hidden;
   }
 
-  /* Adjust empty message for grid layout */
+  /* Fluid Typography for program Title */
+  .program-item h3 {
+    /* Scales from 1rem (min) to 1.2em (max), using 4vw as preferred value */
+    font-size: clamp(0.5rem, 4vw, 1.2em);
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--color-text);
+    word-wrap: break-word; /* Prevents long words from overflowing */
+  }
+
+  /* Fluid Typography for Meta Information */
+  .program-item .meta {
+    /* Scales from 0.75rem (min) to 0.85em (max), using 2.5vw as preferred value */
+    font-size: clamp(0.75rem, 2.5vw, 0.85em);
+    color: var(--color-text-body);
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+
+  /* Fluid Typography for Description */
+  .program-item p:not(.meta) {
+    /* Targets the description paragraph */
+    /* Scales from 0.85rem (min) to 0.95em (max), using 3vw as preferred value */
+    font-size: clamp(0.85rem, 3vw, 0.95em);
+    color: var(--color-text-body);
+    line-height: 1.5;
+    margin-bottom: 0;
+    flex-grow: 1; /* Allows description to take up available space */
+    word-wrap: break-word;
+  }
+
+  /* Style for the link wrapping the program title */
+  .program-item a {
+    text-decoration: none; /* Remove underline */
+    color: inherit; /* Inherit color from parent */
+    display: block; /* Make the link a block element */
+  }
+
+  /* Style for the date and time spans within meta */
+  .program-item .meta span {
+    margin-left: 5px; /* Add space between parts */
+  }
+
+  /* Styles for the empty message */
   .empty-message {
-    grid-column: 1 / -1; /* Make the empty message span all columns */
-    /* ... your existing empty-message styles ... */
+    text-align: center; /* Center the text */
+    padding: 40px; /* Increased padding */
+    grid-column: 1 / -1; /* Make it span across all grid columns */
+    color: var(--color-text-body); /* Use body text color */
+    font-size: 1.1em; /* Slightly larger font size */
+    font-style: italic; /* Italicize the text */
+    background-color: var(--color-background); /* Use background color */
+    border: 1px dashed var(--color-foregroud); /* Dashed border */
+    border-radius: 8px; /* Rounded corners */
+    margin: 20px auto; /* Center the block and add vertical margin */
+    max-width: 600px; /* Optional: Limit max width for better centering */
+    width: 100%; /* Ensure it takes full width up to max-width */
+  }
+
+  /* Ensure the paragraph inside empty-message doesn't have extra margin */
+  .empty-message p {
+    margin: 0;
+  }
+
+  /* --- Responsive Grid Adjustments --- */
+
+  /* For medium screens (e.g., tablets) - 2 columns */
+  @media (max-width: 1300px) {
+    .programs-grid-container {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px; /* Slightly reduce gap */
+    }
+    /* Adjust padding for program items if needed on medium screens */
+    .program-item {
+      padding: 12px;
+    }
+  }
+
+  /* For small screens (e.g., mobile phones) - 1 column */
+  @media (max-width: 800px) {
+    .programs-grid-container {
+      grid-template-columns: 1fr; /* Single column */
+      gap: 10px; /* Further reduce gap */
+    }
+    /* Adjust padding for program items on small screens */
+    .program-item {
+      padding: 10px;
+    }
+    /* Adjust empty message padding for smaller screens */
+    .empty-message {
+      padding: 20px;
+    }
   }
 </style>

@@ -5,14 +5,11 @@
 {% load static %}
 <!-- prettier-ignore-attribute -->
 <div id="component_activity"></div>
+{% if user %}
 <div id="component_program"></div>
 <div id="component_command"></div>
-<!-- 
-  Incluir dinámicamente los componentes adicionales 
-  {% include 'bot/dynamic_components/commands.html' %} {% for component in dynamic_components %}
-  <div id="extra-container">{% include 'bot/dynamic_components/'|add:component %}</div>
-  {% endfor %}
--->
+{% endif %}
+
 <div>
   <h2>Configuration</h2>
   <p>Information about configuring the Telegram Bot Manager...</p>

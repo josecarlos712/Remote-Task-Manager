@@ -554,7 +554,8 @@ def api_register(request):
 
 
 @csrf_protect
-@require_POST
+@require_GET
+@login_required
 def api_logout(request):
     """
     Handles user logout via API and returns a JSON response.
@@ -1222,6 +1223,61 @@ def api_delete_message(request):
             return InternalErrorResponse(message).to_response()
         logger.debug(f"delete_message_by_id() - Successfully deleted message with ID: {message_id}")
         return SuccessResponse(f"Successfully deleted message with ID: {message_id}").to_response()
+
+
+# Endpoint to like a message
+@require_POST
+@csrf_protect
+@login_required
+def api_like_message(request):
+    """
+    API URL: api/messages/like
+    API endpoint to like a message.
+    It receives JSON data with 'message_id'.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Get the message_id from the request JSON body
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"post_like() - Received data: {data}")
+        except json.JSONDecodeError:
+            logger.error("post_like() - Invalid JSON format received.")
+            return ErrorResponse("Invalid JSON format received.").to_response()
+
+        # Get the message_id from the JSON body
+        message_id = data.get('message_id')
+        message_obj, code = get_message_by_id(message_id)
+        if code != 200:
+            logger.error(f"post_like() - Failed to retrieve message with ID {message_id}.")
+            return InternalErrorResponse(message_obj).to_response()
+
+        # Validate the presence of message_id
+        response, code = check_None_API(message_id,
+                                        "post_like() - Missing 'message' in request data.")
+        if code != 200:
+            return response
+
+        # Like the message in the database
+        likes, code = post_like_to_message(message_id, request.user.id)
+        if code != 200:
+            logger.error(f"post_like() - Failed to like message with ID {message_id}.")
+            return InternalErrorResponse(likes).to_response()
+
+        # Convert the likes list into a list of users names
+        like_users = []
+        for user_id in likes:
+            user, code = user_utils.get_user_by_id(user_id)  # Get user object by ID
+            if code == 200:
+                like_users.append(user.username)
+                message_obj.likes.append(user_id)  # Add user to the liked_by field of the message
+                message_obj.save()  # Save the message object to update the likes field
+
+        logger.debug(f"post_like() - Successfully liked message with ID: {message_id}")
+        return SuccessResponse(f"Successfully liked message with ID: {message_id}", like_users).to_response()
 
 
 # ---- User API ----

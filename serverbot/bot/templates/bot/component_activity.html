@@ -2,12 +2,11 @@
   {% for activity in activities %}
   <div class="activity-item">
     <a href="{% url 'activity' activity.id %}">
-      <h3>{{ activity.name }}</h3>
+      <h3>{{ activity.title }}</h3>
     </a>
     <p class="meta">
-      Publicado por {% if activity.user_name %} {{ activity.user_name }} {% else %} [eliminado] {% endif %}
-      <span>el {{ activity.date|date:"d-m-Y" }}</span>
-      <span>{% if activity.created %}a las {{ activity.created|time:"H:i:s" }}{% endif %}</span>
+      Publicado por {% if activity.user_name %}{{ activity.user_name }}{% else %} [eliminado] {% endif %}
+      <span class="date-ago" data-date="{{ activity.created }}">{{ activity.created|date:"d M Y H:i" }}</span>
     </p>
     <p>{{ activity.description }}</p>
   </div>
@@ -17,116 +16,132 @@
   </div>
   {% endfor %}
 </div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const messageDates = document.querySelectorAll(".date-ago");
+    messageDates.forEach((span) => {
+      const rawDate = span.getAttribute("data-date");
+      console.log("Raw date:", rawDate);
+      span.textContent = timeAgo(rawDate);
+    });
+  });
+</script>
+<style>
+  .activities-grid-container {
+    display: grid;
+    /* Default: 3 columns on larger screens */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px; /* Space between grid items */
+    padding: 20px; /* Optional: padding around the grid */
+    max-width: 1200px; /* Limit max width of the grid container */
+    margin: 0 auto; /* Center the grid container */
+  }
 
-  <style>
-    /* Style for the grid container */
+  .activity-item {
+    border: 1px solid var(--color-foregroud); /* Example: Add a border to each activity item */
+    padding: 15px;
+    border-radius: 8px;
+    background-color: var(--color-background);
+    display: flex; /* Make the item a flex container */
+    flex-direction: column; /* Stack content vertically */
+    /* Ensure content doesn't overflow its own box */
+    overflow: hidden;
+  }
+
+  /* Fluid Typography for Activity Title */
+  .activity-item h3 {
+    /* Scales from 1rem (min) to 1.2em (max), using 4vw as preferred value */
+    font-size: clamp(0.5rem, 4vw, 1.2em);
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--color-text);
+    word-wrap: break-word; /* Prevents long words from overflowing */
+  }
+
+  /* Fluid Typography for Meta Information */
+  .activity-item .meta {
+    /* Scales from 0.75rem (min) to 0.85em (max), using 2.5vw as preferred value */
+    font-size: clamp(0.75rem, 2.5vw, 0.85em);
+    color: var(--color-text-body);
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+
+  /* Fluid Typography for Description */
+  .activity-item p:not(.meta) {
+    /* Targets the description paragraph */
+    /* Scales from 0.85rem (min) to 0.95em (max), using 3vw as preferred value */
+    font-size: clamp(0.85rem, 3vw, 0.95em);
+    color: var(--color-text-body);
+    line-height: 1.5;
+    margin-bottom: 0;
+    flex-grow: 1; /* Allows description to take up available space */
+    word-wrap: break-word;
+  }
+
+  /* Style for the link wrapping the activity title */
+  .activity-item a {
+    text-decoration: none; /* Remove underline */
+    color: inherit; /* Inherit color from parent */
+    display: block; /* Make the link a block element */
+  }
+
+  /* Style for the date and time spans within meta */
+  .activity-item .meta span {
+    margin-left: 5px; /* Add space between parts */
+  }
+
+  /* Styles for the empty message */
+  .empty-message {
+    text-align: center; /* Center the text */
+    padding: 40px; /* Increased padding */
+    grid-column: 1 / -1; /* Make it span across all grid columns */
+    color: var(--color-text-body); /* Use body text color */
+    font-size: 1.1em; /* Slightly larger font size */
+    font-style: italic; /* Italicize the text */
+    background-color: var(--color-background); /* Use background color */
+    border: 1px dashed var(--color-foregroud); /* Dashed border */
+    border-radius: 8px; /* Rounded corners */
+    margin: 20px auto; /* Center the block and add vertical margin */
+    max-width: 600px; /* Optional: Limit max width for better centering */
+    width: 100%; /* Ensure it takes full width up to max-width */
+  }
+
+  /* Ensure the paragraph inside empty-message doesn't have extra margin */
+  .empty-message p {
+    margin: 0;
+  }
+
+  /* --- Responsive Grid Adjustments --- */
+
+  /* For medium screens (e.g., tablets) - 2 columns */
+  @media (max-width: 1300px) {
     .activities-grid-container {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr); /* Creates 3 equal columns */
-      gap: 20px; /* Space between grid items */
-      padding: 20px; /* Optional: padding around the grid */
-    }
-  
-    .activity-item {
-      border: 1px solid var(--color-foregroud); /* Example: Add a border to each activity item */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px; /* Slightly reduce gap */
       padding: 15px;
-      border-radius: 8px;
-      background-color: var(--color-background);
-      display: flex; /* Make the item a flex container */
-      flex-direction: column; /* Stack content vertically */
     }
-  
-    /* Adjust empty message for grid layout */
+    /* Adjust padding for activity items if needed on medium screens */
+    .activity-item {
+      padding: 12px;
+    }
+  }
+
+  /* For small screens (e.g., mobile phones) - 1 column */
+  @media (max-width: 800px) {
+    .activities-grid-container {
+      grid-template-columns: 1fr; /* Single column */
+      gap: 10px; /* Further reduce gap */
+      padding: 10px;
+    }
+    /* Adjust padding for activity items on small screens */
+    .activity-item {
+      padding: 10px;
+    }
+    /* Adjust empty message padding for smaller screens */
     .empty-message {
-      grid-column: 1 / -1; /* Make the empty message span all columns */
-      /* ... your existing empty-message styles ... */
+      padding: 20px;
     }
-  
-    /* Optional: Responsiveness for smaller screens */
-    @media (max-width: 900px) {
-      .activities-grid-container {
-        grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
-      }
-    }
-  
-    @media (max-width: 600px) {
-      .activities-grid-container {
-        grid-template-columns: 1fr; /* 1 column on small screens */
-      }
-    }
-
-    /* Style for the link wrapping the activity title */
-    .activity-link {
-      text-decoration: none; /* Remove underline */
-      color: inherit; /* Inherit color from parent */
-      display: block; /* Make the link a block element */
-      margin-bottom: 10px; /* Space below the title link */
-    }
-
-    /* Style for the activity title */
-    .activity-title {
-      margin-top: 0; /* Remove default top margin */
-      margin-bottom: 0; /* Remove default bottom margin */
-      font-size: 1.2em; /* Adjust font size */
-      color: var(--color-text); /* Use text color */
-    }
-
-    /* Style for the meta information (published by, date, time) */
-    .activity-meta {
-      font-size: 0.85em; /* Smaller font size */
-      color: var(--color-text-body); /* Use body text color */
-      margin-bottom: 10px; /* Space below meta */
-      line-height: 1.4; /* Adjust line height */
-    }
-
-    /* Style for the date and time spans within meta */
-    .activity-meta span {
-      margin-left: 5px; /* Add space between parts */
-    }
-
-    /* Style for the activity description */
-    .activity-description {
-      font-size: 0.95em; /* Slightly smaller than default */
-      color: var(--color-text-body); /* Use body text color */
-      line-height: 1.5; /* Adjust line height */
-      margin-bottom: 0; /* Remove default bottom margin */
-      flex-grow: 1; /* Allow description to take up available space */
-    }
-
-    /* Styles for the empty message */
-    .empty-message {
-      text-align: center; /* Center the text */
-      padding: 40px; /* Increased padding */
-      grid-column: 1 / -1; /* Make it span across all grid columns */
-      color: var(--color-text-body); /* Use body text color */
-      font-size: 1.1em; /* Slightly larger font size */
-      font-style: italic; /* Italicize the text */
-      background-color: var(--color-background); /* Use background color */
-      border: 1px dashed var(--color-foregroud); /* Dashed border */
-      border-radius: 8px; /* Rounded corners */
-      margin: 20px auto; /* Center the block and add vertical margin */
-      max-width: 600px; /* Optional: Limit max width for better centering */
-      width: 100%; /* Ensure it takes full width up to max-width */
-    }
-
-    /* Ensure the paragraph inside empty-message doesn't have extra margin */
-    .empty-message p {
-      margin: 0;
-    }
-
-    /* Optional: Basic responsiveness for smaller screens */
-    @media (max-width: 600px) {
-      .grid-container {
-        padding: 10px; /* Reduce padding on smaller screens */
-        gap: 15px; /* Reduce gap */
-      }
-
-      .grid-item {
-        padding: 10px; /* Reduce card padding */
-      }
-
-      .empty-message {
-        padding: 20px; /* Reduce empty message padding */
-      }
-    }
-  </style>
+  }
+</style>

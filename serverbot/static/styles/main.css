@@ -3,10 +3,12 @@
   --color-text: white;
   --color-text-body: #dbdbdb;
   --color-background: #0f0f0f; /* Green */
-  --color-background-container: #303030; /* Dark gray */
+  --color-background-light: #303030; /* Dark gray */
   --color-foregroud: #ccc; /* Light gray */
   --color-error: red;
   --color-success: #bbffb6;
+  --color-button: #007bff; /* Blue */
+  --color-button-hover: #004494; /* Darker blue */
 }
 
 /*  */
@@ -47,7 +49,7 @@ li {
 body {
   font-family: Arial, sans-serif;
   line-height: 1.2;
-  background-color: var(--color-background-container); /* Softer dark gray background */
+  background-color: var(--color-background-light); /* Softer dark gray background */
   color: var(--color-text-body); /* Light gray text color */
   padding: 1rem; /* General padding */
 }
@@ -105,7 +107,7 @@ nav ul li a {
 }
 
 nav ul li a:hover {
-  background-color: var(--color-background-container);
+  background-color: var(--color-background-light);
 }
 
 ul,
@@ -138,7 +140,7 @@ small {
 }
 
 .grid-container > div {
-  background-color: var(--color-background-container);
+  background-color: var(--color-background-light);
   text-align: center;
   padding: 10px;
   font-size: 1em;
@@ -294,7 +296,7 @@ footer a:hover {
 
 /* Generic Card Styles */
 .card {
-  background-color: var(--color-background-container);
+  background-color: var(--color-background-light);
   color: var(--color-text-body);
   border: 1px solid var(--color-foregroud);
   border-radius: 8px;

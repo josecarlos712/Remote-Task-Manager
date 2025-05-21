@@ -1,4 +1,4 @@
-{% extends 'main.html' %} {% load static %} {% block title %}Error - Something Went Wrong{% endblock %} {% block baseblock %}
+{% load static %}
 <style>
   .error-container {
     background-color: #2d2d2d; /* Slightly lighter dark background for container */
@@ -41,8 +41,5 @@
     {% else %}
     <p>No specific error message was provided.</p>
     {% endif %}
-
-    <p><a href="/">Go to Home Page</a></p>
   </div>
 </div>
-{% endblock %}
