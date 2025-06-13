@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # ---- Command API ----
 @login_required
 @csrf_protect
-@require_POST  # Only allows POST requests
+@require_GET  # Only allows POST requests
 def api_update_commands_list(request):
     """
     API URL: api/command/list
@@ -52,77 +52,20 @@ def api_update_commands_list(request):
     Requires authentication, CSRF token, and is a POST request.
     Expects JSON body with 'client_id'.
     """
-    try:
-        # Attempt to parse the JSON data from the request body
-        data = json.loads(request.body)
-        logger.debug(f"api_update_commands_list() - Received data: {data}")
-
-    except json.JSONDecodeError:
-        logger.error("api_update_commands_list() - Invalid JSON format received.")
-        return ErrorResponse("Invalid JSON format.", 400).to_response()
-
     # Get the client_id from the request data
-    client_id = data.get('client_id')
-
-    # Validate the presence of client_id
-    response, code = check_None_API(client_id, "api_update_commands_list() - Missing 'client_id' in request data.")
+    user = request.user
+    response, code = sync_commands_list(user)
     if code != 200:
-        return response
+        logger.error(f"api_update_commands_list() - Failed to retrieve command list for user {user.id}.")
+        return NotFoundResponse(response).to_response()
 
-    # Retrieve the Client object
-    logger.debug(f"api_update_commands_list() - Attempting to retrieve client with ID: {client_id}")
-    try:
-        client_obj = Client.objects.get(pk=client_id)
-        logger.debug(f"api_update_commands_list() - Successfully retrieved client: {client_obj}")
-
-    except ObjectDoesNotExist:
-        logger.warning(f"api_update_commands_list() - Client with ID '{client_id}' not found.")
-        return NotFoundResponse("client_id").to_response()
-
-    except MultipleObjectsReturned:
-        # Should not happen for primary key lookup, but included for robustness
-        logger.error(f"api_update_commands_list() - Multiple clients found for ID '{client_id}'. Database error?")
-        return InternalErrorResponse("Multiple clients found for this ID.").to_response()
-
-    except Exception as e:
-        # Catch any other potential database errors during retrieval
-        logger.error(f"api_update_commands_list() - Error retrieving client '{client_id}': {e}", exc_info=True)
-        return InternalErrorResponse("A unexpected exception occurred while retrieving the client.").to_response()
-
-    # --- Check User Allowance for the Client ---
-    user = request.user  # Get the currently authenticated user
-    if not user:
-        logger.debug("api_update_commands_list() - User is not authenticated.")
-        return UnauthorizedResponse("User is not authenticated.").to_response()
-
-    # Use the is_user_allowed method of the Client model
-    if not client_obj.is_user_allowed(user):
-        logger.debug(
-            f"api_update_commands_list() - User '{user.username}' is not allowed to access client {client_obj}.")
-        # If the user is allowed, return a success response
-        return UnauthorizedResponse(f"{user} is not allowed to access {client_obj}.").to_response()  # 200 OK
-
-    # --- Update the commands list for the client ---
-    # Send the GET request to the client application on the endpoint 'api/command/list'
-    commands_api_endpoint = "api/command/list"  # Endpoint to fetch the command list
-    command_list, status_code = send_client_get_request(client_obj, commands_api_endpoint)
-
-    # Check if the command list was successfully retrieved
-    if status_code != 200:
-        logger.error(f"api_update_commands_list() - Failed to retrieve command list from client {client_obj}.")
-        return InternalErrorResponse("Failed to retrieve command list from the client.").to_response()
-
-    logger.debug(f"api_update_commands_list() - Command list for client {client_obj}: {command_list}")
-
-    # Update the Command DB with the new command list
-    sync_status = update_commands_list(client_obj, command_list)
-
-    if sync_status:
-        logger.info(f"api_update_commands_list() - Command list synchronized successfully for client {client_obj}.")
-        return SuccessResponse("Command list synchronized successfully.").to_response()
-    else:
-        logger.error(f"api_update_commands_list() - Failed to synchronize command list for client {client_obj}.")
-        return InternalErrorResponse("Failed to synchronize command list.").to_response()
+    # Get the updated command list from the DB
+    commands, code = get_command_list_by_user(user.id)
+    if code != 200:
+        logger.error(f"api_update_commands_list() - Failed to retrieve command list for user {user.id}.")
+        return NotFoundResponse(commands).to_response()
+    logger.debug(f"api_update_commands_list() - Successfully retrieved command list for user {user}.")
+    return SuccessResponse("Command list synchronized successfully.", data=commands).to_response()
 
 
 @login_required
@@ -141,7 +84,7 @@ def api_execute_command(request):
     # If the request is None, the function returns if the function is 'GET' or 'POST'
     if not request:
         return _method
-    command_endpoint = "api/command/execute/"  # Endpoint to forward the command to the client application
+    command_endpoint = "api/commands/execution"  # Endpoint to forward the command to the client application
 
     try:
         data = json.loads(request.body)
@@ -156,7 +99,7 @@ def api_execute_command(request):
     client_id = data.get('client_id')
     command_id = data.get('command_id')
     args = data.get('args', [])  # Default to empty list
-    kwargs = data.get('kwargs', {})  # Default to empty dict
+    # kwargs = data.get('kwargs', {})  # Default to empty dict
 
     # Validate required fields in the incoming request
     expected_fields = ['client_id', 'command_id']
@@ -172,32 +115,14 @@ def api_execute_command(request):
         api_response = BadRequestResponse(message="'args' debe ser una lista.")
         return JsonResponse(api_response.to_dict(), status=400)
 
-    if not isinstance(kwargs, dict):
-        logger.warning(f"api_command() - 'kwargs' field is not a dictionary: {kwargs}")
-        api_response = BadRequestResponse(message="'kwargs' debe ser un diccionario.")
-        return JsonResponse(api_response.to_dict(), status=400)
-
     # Retrieve the Client object
-    logger.debug(f"api_command() - Attempting to retrieve client with ID: {client_id}")
-    try:
-        client_obj = Client.objects.get(pk=client_id)
-        logger.debug(f"api_command() - Successfully retrieved client: {client_obj}")
+    logger.debug(f"api_execute_command() - Attempting to retrieve client with ID: {client_id}")
 
-    except ObjectDoesNotExist:
-        logger.warning(f"api_command() - Client with ID '{client_id}' not found.")
-        api_response = NotFoundResponse(f"Cliente con ID '{client_id}' no encontrado.")
-        return JsonResponse(api_response.to_dict(), status=404)
-
-    except MultipleObjectsReturned:
-        # Should not happen for primary key lookup, but included for robustness
-        logger.error(f"api_command() - Multiple clients found for ID '{client_id}'. Database error?")
-        api_response = InternalErrorResponse("Error interno: Múltiples clientes encontrados.")
-        return JsonResponse(api_response.to_dict(), status=500)
-
-    except Exception as e:
-        logger.error(f"api_command() - Error retrieving client '{client_id}': {e}", exc_info=True)
-        api_response = InternalErrorResponse("Ocurrió un error al obtener el cliente.")
-        return JsonResponse(api_response.to_dict(), status=500)
+    # Get the client object from the database
+    client_obj, code = get_client_by_id(client_id)
+    if code != 200:
+        logger.error(f"api_execute_command() - Client with ID '{client_id}' not found.")
+        return NotFoundResponse(f"Cliente con ID '{client_id}' no encontrado.").to_response()
 
     # --- Check User Allowance for the Client ---
     user = request.user  # Get the currently authenticated user
@@ -205,34 +130,41 @@ def api_execute_command(request):
     # Use the is_user_allowed method of the Client model
     if not client_obj.is_user_allowed(user):
         logger.warning(
-            f"api_command() - User '{user.username}' is not on the allowance list {client_obj.allowed_users}, so is not allowed to access client {client_obj}.")
+            f"api_execute_command() - User '{user.username}' is not on the allowance list {client_obj.allowed_users}, so is not allowed to access client {client_obj}.")
         api_response = ForbiddenErrorResponse(message="No tienes permiso para acceder a este cliente.")
         return JsonResponse(api_response.to_dict(), status=403)
 
     # Get user api key stored in the user
-    # TODO: Get client api key from UserSettings
     # Get the UserSettings from the user
-    user_settings = user.usersettings_set.first()
+    user_settings = UserSettings.objects.filter(user=user).first()
+    # Initialize key to None
+    client_api_key = ""  # Default to an empty string if not found
     if user_settings:
         # Get the client API keys dict from the UserSettings
         client_api_key_dict = user_settings.client_api_keys
+        logger.debug(f"api_execute_command() - User settings for user {user.username}: {client_api_key_dict}")
         # Look for the client API key in the dict using the name of the client
         client_api_key = client_api_key_dict.get(client_obj.name)
         if not client_api_key:
             logger.error(
-                f"api_command() - Client API key not found for client {client_obj.name} in user's ({user}) settings: {client_api_key_dict}.")
+                f"api_execute_command() - Client API key not found for client {client_obj.name} in user's ({user}) settings: {client_api_key_dict}.")
             return UnauthorizedResponse("Client API key not found.").to_response()
     # client_api_key = getattr(settings, 'CLIENT_API_SECRET_KEY', None)
 
     # --- Forward the command execution request to the Client Application ---
-    # TODO Replace with the send API request function
     client_api_url = f"http://{client_obj.local_ip}:{client_obj.port}/{command_endpoint}"
 
+    # Get the command object from the registered commands
+    command_obj, code = get_command_by_id(command_id)
+    if code != 200:
+        logger.error(f"api_execute_command() - Command with ID '{command_id}' not found.")
+        api_response = NotFoundResponse(f"Comando con ID '{command_id}' no encontrado.")
+        return JsonResponse(api_response.to_dict(), status=404)
+    command_obj: Command
     # Prepare the payload to send to the client application
     client_payload = {
-        'command_id': command_id,
-        'args': args,
-        'kwargs': kwargs,
+        'command': command_obj.name,  # Use the command's name
+        'message': command_obj.description,  # Use the command's description
     }
 
     # Prepare the headers, including the custom API key header
@@ -243,92 +175,55 @@ def api_execute_command(request):
     }
 
     logger.debug(
-        f"api_command() - Forwarding command '{command_id}' to client {client_obj} at {client_api_url} with payload: {client_payload}")
+        f"api_execute_command() - Forwarding command '{command_id}' to client {client_obj} at {client_api_url} with payload: {client_payload}")
 
-    try:
-        # Make the POST request to the client application's API
-        # Pass the headers dictionary to the requests.post call
-        client_response = requests.post(client_api_url, json=client_payload, headers=headers,
-                                        timeout=10)  # Added headers
-
-        # Check the HTTP status code of the response from the client
-        client_response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
-
-        # Attempt to parse the JSON response from the client application
-        # Assuming the client application's API returns JSON
-        client_result = client_response.json()
-        logger.info(f"api_command() - Received response from client {client_obj}: {client_result}")
-
-        # Forward the client's response back to the original web client
-        # TODO: Review the structure of client_result and potentially wrap it
-        # in a standard APIResponse format if the client's response format is inconsistent.
-        # For now, we'll return the client's JSON response directly.
-        return JsonResponse(client_result, status=client_response.status_code)  # Use the client's status code
-
-    except requests.exceptions.Timeout:
-        logger.error(f"api_command() - Request to client {client_obj} at {client_api_url} timed out.")
-        api_response = InternalErrorResponse(f"La solicitud al cliente {client_obj} excedió el tiempo de espera.")
-        return JsonResponse(api_response.to_dict(), status=504)  # 504 Gateway Timeout
-
-    except requests.exceptions.ConnectionError:
-        logger.error(f"api_command() - Could not connect to client {client_obj} at {client_api_url}.")
-        api_response = InternalErrorResponse(f"No se pudo conectar con el cliente {client_obj}.")
-        return JsonResponse(api_response.to_dict(), status=503)  # 503 Service Unavailable
-
-    except requests.exceptions.RequestException as e:
-        # Catch any other requests-related errors (e.g., HTTPError from raise_for_status)
-        logger.error(f"api_command() - Error forwarding request to client {client_obj} at {client_api_url}: {e}",
-                     exc_info=True)
-        try:
-            # Attempt to get error details from the client response body if available
-            error_details = client_response.json()
-        except json.JSONDecodeError:
-            error_details = client_response.text  # Fallback to text if not JSON
-
-        api_response = InternalErrorResponse(
-            f"Error al comunicar con el cliente {client_obj}. Client responded with status {client_response.status_code}: {error_details}")
-        return JsonResponse(api_response.to_dict(),
-                            status=client_response.status_code if client_response.status_code >= 400 else 500)  # Use client's error status or 500
-
-    except Exception as e:
-        # Catch any other unexpected errors during the forwarding process
+    # Send the POST request to the client application
+    # Prepare the arguments for the send_client_post_request function
+    client_id = client_obj.pk
+    user_id = request.user.id  # Use the user ID from the request
+    args = {
+        "client_id": client_id,
+        "user_id": user_id,  # Use the user ID from the request
+        "endpoint": command_endpoint,  # The endpoint to forward the command to
+        "body": client_payload,  # The payload to send to the client application
+        "headers": headers,  # The headers to include in the request
+    }
+    response, code = send_client_post_request(**args)
+    if code != 200:
         logger.error(
-            f"api_command() - An unexpected error occurred during client communication for command '{command_id}' on client {client_obj}: {e}",
-            exc_info=True)
-        api_response = InternalErrorResponse(
-            f"Ocurrió un error inesperado al procesar el comando '{command_id}'.", error=str(e))
-        return JsonResponse(api_response.to_dict(), status=500)
+            f"api_execute_command() - Failed to execute command '{command_id}' for client {client_id}. {response}")
+        return InternalErrorResponse(response).to_response()
+    logger.debug(f"api_execute_command() - Successfully executed command '{command_id}' for client {client_id}.")
+    # If the request was successful, return the response from the client application
+    return SuccessResponse(f"Successfully executed command '{command_id}' for client {client_id}.",
+                           data=response).to_response()
 
 
 # Get all commands from the database for the request.user
-@login_required
-@csrf_protect
 @require_GET
 def api_get_command_list(request):
     """
     API URL: api/command/list
-    API endpoint to get the list of commands for a specific client.
+    API endpoint to get the list of commands for the request.user.
     Requires authentication and CSRF token.
-    Expects JSON body with 'client_id'.
     """
     # This view only supports GET requests
     _method = 'GET'
     if not request:
         return _method
 
-    # Get the client_id from the request data
-    client_id = request.user.id
+    # Get the user from the request
+    user = request.user
+    user = User.objects.filter(id=1).first()  # Get the user object from the database
 
     # Get commands from user
-    commands, code = get_command_list_by_user(client_id)
+    commands, code = get_command_list_by_user(user.id)
     if code != 200:
-        logger.error(f"api_get_command_list() - Failed to retrieve command list for user {client_id}.")
+        logger.error(f"api_get_command_list() - Failed to retrieve command list for user {user}.")
         return NotFoundResponse(commands).to_response()
-    logger.debug(f"api_get_command_list() - Successfully retrieved command list for user {client_id}.")
-    # Convert the command list to a list of dictionaries
-    command_list = [command.to_dict() for command in commands]
+    logger.debug(f"api_get_command_list() - Successfully retrieved command list for user {user}.")
     # Return the command list as a JSON response
-    return SuccessResponse("Successfully retrieved command list for user {client_id}.", command_list)  # 200 OK
+    return SuccessResponse("Successfully retrieved command list for user {client_id}.", commands)  # 200 OK
 
 
 # ---- Program API ----
@@ -760,7 +655,7 @@ def api_create_activity(request):
             return ErrorResponse("Invalid JSON format received.").to_response()
 
         # Verify the parameters
-        expected_fields = ['activity_title', 'activity_description']
+        expected_fields = ['title', 'description']
         for field in expected_fields:
             if field not in data:
                 logger.warning(f"create_activity() - Missing '{field}' in request data.")
@@ -776,14 +671,14 @@ def api_create_activity(request):
         # activity_name is the title in lowercase with spaces replaced by underscores
         parameters['name'] = parameters['title'].lower().replace(" ", "_")
 
-        # Validate the presence of activity_title
+        # Validate the presence of title
         response, code = check_None_API(parameters['title'],
                                         "create_activity() - Missing 'activity_name' in request data.")
         if code != 200:
             return response
 
         response, code = check_None_API(parameters['description'],
-                                        "create_activity() - Missing 'activity_description' in request data.")
+                                        "create_activity() - Missing 'description' in request data.")
         if code != 200:
             parameters['description'] = ""
 
@@ -810,7 +705,7 @@ def api_update_activity(request):
     """
     API URL: api/activities/update
     API endpoint to update an activity by its ID.
-    Receives JSON data with 'activity_id', 'activity_title', and 'activity_description'.
+    Receives JSON data with 'activity_id', 'title', and 'description'.
     """
     # This view only supports POST requests
     _method = 'POST'
@@ -1364,14 +1259,14 @@ def api_update_user(request):
         # Get the user data from the request JSON body
         try:
             data = json.loads(request.body)
-            logger.debug(f"update_user_by_id() - Received data: {data}")
+            logger.debug(f"api_update_user() - Received data: {data}")
         except json.JSONDecodeError:
-            logger.error("update_user_by_id() - Invalid JSON format received.")
+            logger.error("api_update_user() - Invalid JSON format received.")
             return ErrorResponse("Invalid JSON format received.").to_response()
 
         # Check required fields
         if 'user_id' not in data:
-            logger.error("update_user_by_id() - Missing 'user_id' in request data.")
+            logger.error("api_update_user() - Missing 'user_id' in request data.")
             return BadRequestResponse("Missing 'user_id' in request data.").to_response()
 
         # Optional fields to be updated
@@ -1381,35 +1276,63 @@ def api_update_user(request):
             'first_name': str,
             'last_name': str,
             'email': str,
-            'is_active': bool,
-            'is_staff': bool,
-            'is_superuser': bool,
-            'groups': list,
-            'user_permissions': list,
+            'current_password': str,
+            'new_password': str,
+            'confirm_password': str,
         }
 
         # Add to parameters variable the available fields in the request
         parameters = {}
+
+        # Try to parse 'user_id' as an integer
+        if not isinstance(data['user_id'], int):
+            parameters['user_id'] = int(data['user_id'])
+            print(f"api_update_user() - Parsed 'user_id' as integer: {parameters['user_id']}")
+
         for key, expected_type in expected_types.items():
             if key in data:
-                if isinstance(data[key], expected_type):
-                    parameters[key] = data[key]
+                if key not in ['user_id']:
+                    if isinstance(data[key], expected_type):
+                        if key not in ['current_password', 'new_password', 'confirm_password']:
+                            parameters[key] = data[key]
+                    else:
+                        logger.error(f"api_update_user() - Invalid type for '{key}' in request data.")
+                        return BadRequestResponse(
+                            f"Invalid type for '{key}' in request data. '{key}' expected type '{expected_type}', but got '{type(data[key])}' instead.").to_response()
+                else:
+                    continue
+
+        # Check if there is a password change request
+        if 'current_password' in data and 'new_password' in data and 'confirm_password' in data:
+            # Validate the old password and new password confirmation
+            if not request.user.check_password(data['current_password']):
+                logger.error("api_update_user() - Old password is incorrect.")
+                return BadRequestResponse("Old password is incorrect.").to_response()
+
+            if data['new_password'] != data['confirm_password']:
+                logger.error("api_update_user() - New password and confirm password do not match.")
+                return BadRequestResponse("New password and confirm password do not match.").to_response()
+
+            # If the new password is valid, add it to the parameters
+            parameters['password'] = data['new_password']
 
         # Update the user in the database
         user, code = update_user(parameters['user_id'], parameters)
         if code != 200:
-            logger.error(f"update_user_by_id() - Failed to update user with ID {parameters['user_id']}.")
+            logger.error(f"api_update_user() - Failed to update user with ID {parameters['user_id']}.")
             return InternalErrorResponse(user).to_response()
         # Convert the User object into a dictionary using to_dict()
         user_data = user_to_dict(user)
         # If the request was successful, return the user data
-        logger.debug(f"update_user_by_id() - Successfully updated user data: {user_data}")
+        logger.debug(f"api_update_user() - Successfully updated user data: {user_data}")
         return SuccessResponse("Successfully updated user data.", user_data).to_response()
 
 
 # ---- Client API ----
+# Client
 @require_GET
-@csrf_exempt  # TODO Remove this decorator on production
+@login_required
+@csrf_protect
 def api_get_client_list(request):
     """
     API URL: api/clients/list
@@ -1423,7 +1346,7 @@ def api_get_client_list(request):
         # Get the list of clients from the database
         # clients, code = get_clients_by_user(request.user) # On production, get user from request
         print(request.GET)
-        clients, code = get_clients_by_user(int(request.GET['user_id']))
+        clients, code = get_clients_by_user(request.user.id)  # For testing purposes, get user from request
         if code != 200:
             logger.error(f"get_client_list() - Failed to retrieve client list.")
             return InternalErrorResponse(clients).to_response()
@@ -1438,17 +1361,18 @@ def api_get_client_list(request):
 
 # Endpoint to get a client by its ID
 @require_POST
-@csrf_exempt  # TODO Remove this decorator on production
+@login_required
+@csrf_protect
 def api_get_client_by_id(request):
     """
-    API URL: api/clients
+    API URL: api/clients?id=<client_id>
     API endpoint to get a client by its ID.
-    Receives JSON data with 'client_id'.
+    Receives 'client_id' as parameter in the url.
     """
     # This view only supports POST requests
-    _method = 'POST'
+    _method = 'GET'
     if not request:
-        return _method
+        return BadMethodErrorResponse(request.method, _method).to_response()
     if request.method == 'POST':
         # Get the client_id from the request JSON body
         try:
@@ -1474,3 +1398,52 @@ def api_get_client_by_id(request):
         # If the request was successful, return the client data
         logger.debug(f"get_client_by_id() - Successfully retrieved activity data: {client_data}")
         return SuccessResponse("Successfully retrieved activity data.", client_data).to_response()
+
+
+# Programs
+def api_get_program_list(request):
+    """
+    API URL: api/programs/list
+    API endpoint to get the list of programs.
+    """
+    # This view only supports GET requests
+    _method = 'GET'
+    if not request:
+        return _method
+    if request.method == 'GET':
+        # Get the list of programs from the database
+        programs, code = get_programs_from_client()
+        if code != 200:
+            logger.error(f"get_program_list() - Failed to retrieve program list.")
+            return InternalErrorResponse(programs).to_response()
+
+        # Convert the QuerySet of Program objects into a list of dictionaries using to_dict()
+        program_list_data = [program.to_dict() for program in programs]
+
+        # If the request was successful, return the list of programs
+        logger.debug(f"get_program_list() - Successfully retrieved program list: {program_list_data}")
+        return SuccessResponse("Successfully retrieved program list.", program_list_data).to_response()  # 200 OK
+
+
+def api_sync_programs(request):
+    """
+    API URL: api/programs/sync
+    API endpoint to sync programs with the database.
+    """
+    # This view only supports POST requests
+    _method = 'POST'
+    if not request:
+        return _method
+    if request.method == 'POST':
+        # Sync the programs with the database
+        programs, code = sync_programs_from_client()
+        if code != 200:
+            logger.error(f"sync_programs() - Failed to sync program list.")
+            return InternalErrorResponse(programs).to_response()
+
+        # Convert the QuerySet of Program objects into a list of dictionaries using to_dict()
+        program_list_data = [program.to_dict() for program in programs]
+
+        # If the request was successful, return the list of programs
+        logger.debug(f"sync_programs() - Successfully synced program list: {program_list_data}")
+        return SuccessResponse("Successfully synced program list.", program_list_data).to_response()  # 200 OK

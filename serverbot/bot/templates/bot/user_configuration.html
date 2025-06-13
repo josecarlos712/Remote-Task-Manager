@@ -1,0 +1,379 @@
+{% extends "main.html" %} {% load static %} {% block title %}User Configuration{% endblock %} {% block baseblock %}
+<div class="form-container">
+  <h1>User Configuration</h1>
+  <a href="#"><!-- Link to top of the page --></a>
+  {# Message display area for success/error messages #}
+  <div id="message-display" class="message-box" style="display: none"></div>
+
+  {# Section 1: User Profile Properties #}
+  <h2 class="section-title">Update Profile</h2>
+  <form id="update-profile-form-element">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="username">Username:</label>
+      {# Username is typically not directly editable by the user via this form, often managed by admin or system #}
+      <input type="text" id="username" name="username" value="{{ user_data.username|default:'' }}" disabled class="disabled-input" />
+    </div>
+
+    <div class="form-group">
+      <label for="first_name">First Name:</label>
+      <input type="text" id="first_name" name="first_name" value="{{ user_data.first_name|default:'' }}" />
+    </div>
+
+    <div class="form-group">
+      <label for="last_name">Last Name:</label>
+      <input type="text" id="last_name" name="last_name" value="{{ user_data.last_name|default:'' }}" />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" value="{{ user_data.email|default:'' }}" required />
+    </div>
+
+    {# Display-only user properties (typically not editable by user via this form) #}
+    <div class="form-group info-display">
+      <label>Account Active:</label>
+      <p>{{ user_data.is_active|yesno:"Yes,No" }}</p>
+    </div>
+
+    <div class="form-group info-display">
+      <label>Staff Access:</label>
+      <p>{{ user_data.is_staff|yesno:"Yes,No" }}</p>
+    </div>
+
+    <div class="form-group info-display">
+      <label>Superuser:</label>
+      <p>{{ user_data.is_superuser|yesno:"Yes,No" }}</p>
+    </div>
+
+    <div class="form-group info-display">
+      <label>Groups:</label>
+      <ul>
+        {% for group in user_data.groups.all %}
+        <li>{{ group.name }}</li>
+        {% empty %}
+        <li>No groups assigned.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="form-group info-display">
+      <label>User Permissions:</label>
+      <ul>
+        {% for perm in user_data.user_permissions.all %}
+        <li>{{ perm.codename }}</li>
+        {% empty %}
+        <li>No specific permissions assigned.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <button type="submit" class="form-submit-button">Save Profile</button>
+  </form>
+
+  <hr class="form-divider" />
+
+  {# Section 2: Change Password Form #}
+  <h2 class="section-title">Change Password</h2>
+  <form id="change-password-form-element">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="current_password">Current Password:</label>
+      <input type="password" id="current_password" name="current_password" required autocomplete="current_password" value="" />
+    </div>
+
+    <div class="form-group">
+      <label for="new_password">New Password:</label>
+      <input type="password" id="new_password" name="new_password" required autocomplete="new_password" value="" />
+    </div>
+
+    <div class="form-group">
+      <label for="confirm_password">Confirm New Password:</label>
+      <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new_password" value="" />
+    </div>
+
+    <button type="submit" class="form-submit-button">Change Password</button>
+  </form>
+
+  <hr class="form-divider" />
+
+  {# Section 3: Add New Client Form #}
+  <h2 class="section-title">Add New Client</h2>
+  <form id="add-client-form-element">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="client_name">Client Name:</label>
+      <input type="text" id="client_name" name="name" required />
+    </div>
+
+    <div class="form-group">
+      <label for="local_ip">Local IP:</label>
+      <input type="text" id="local_ip" name="local_ip" placeholder="e.g., 192.168.1.100" required />
+    </div>
+
+    <div class="form-group">
+      <label for="api_key">API Key:</label>
+      <input type="text" id="api_key" name="API_key" required />
+    </div>
+
+    <button type="submit" class="form-submit-button">Add Client</button>
+  </form>
+</div>
+
+{# Inline CSS for consistent styling, copied from create_activity.html and extended #}
+<style>
+  /* Basic styling for the form container */
+  .form-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: var(--color-background);
+    border: 1px solid var(--color-foregroud);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .section-title {
+    color: var(--color-text);
+    margin-top: 30px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: var(--color-text);
+  }
+
+  .form-group input[type="text"],
+  .form-group input[type="email"],
+  .form-group input[type="password"],
+  .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    font-size: 1em;
+    color: var(--color-text-body);
+    background-color: var(--color-background-light);
+  }
+
+  .form-group input.disabled-input {
+    background-color: var(--color-background-light-disabled); /* Slightly different background for disabled fields */
+    cursor: not-allowed;
+  }
+
+  .form-group textarea {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 120px;
+  }
+
+  .form-group p {
+    padding: 10px 0;
+    color: var(--color-text-body);
+  }
+
+  .form-group ul {
+    list-style: disc inside;
+    padding-left: 20px;
+    color: var(--color-text-body);
+  }
+
+  .form-group ul li {
+    margin-bottom: 5px;
+  }
+
+  /* Style for info display sections */
+  .form-group.info-display {
+    background-color: var(--color-background-darker); /* Slightly darker background for info */
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid var(--color-foregroud);
+  }
+
+  .form-submit-button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    background-color: var(--color-button); /* A standard blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 10px; /* Space above button */
+  }
+
+  .form-submit-button:hover {
+    background-color: var(--color-button-hover);
+    cursor: pointer;
+  }
+
+  .form-divider {
+    border: none;
+    height: 1px;
+    background-color: var(--color-foregroud);
+    margin: 40px 0;
+  }
+
+  /* Styles for messages (success/error) */
+  .message-box {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .message-box.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+  }
+
+  .message-box.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+  }
+</style>
+<script>
+  // Function to display messages in the message box
+  function displayMessage(message, type) {
+    const messageBox = document.getElementById("message-display");
+    messageBox.style.display = "block";
+    messageBox.className = `message-box ${type}`;
+    messageBox.textContent = message;
+  }
+
+  // Event listener for the update profile form submission
+  document.getElementById("update-profile-form-element").addEventListener("submit", function (event) {
+    event.preventDefault();
+    // Handle profile update logic here
+    const formData = new FormData(event.target);
+    // Create an empty object to store the key-value pairs
+    const dataToSend = {};
+    // Iterate over the FormData entries and populate the new object
+    for (let [key, value] of formData.entries()) {
+      dataToSend[key] = value;
+    }
+    // Add user_id to the dataToSend
+    dataToSend["user_id"] = "{{ user_data.id }}"; // Assuming user_data is available in the template context
+
+    // Now, dataToSend is a plain JavaScript object (like a Python dict)
+    console.log("Data to send as JSON:", dataToSend);
+
+    // Send data to the server via fetch or AJAX
+    const url = "{% url 'api_update_user' %}"; // Adjust the URL as needed
+    sendAjaxPostRequestJson(url, dataToSend)
+      .then((response) => {
+        const status = response[0];
+        const data = response[1];
+        console.log("Response from server:", response); // Log the entire response for debugging
+        if (status) {
+          displayMessage("Profile updated successfully! User: " + JSON.stringify(data.data, null, 2), "success");
+        } else {
+          displayMessage("Error updating profile: " + data.error, "error");
+        }
+        window.location.href = "#";
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        displayMessage("An unexpected error occurred.", "error");
+        window.location.href = "#";
+      });
+    displayMessage("Profile updated successfully!", "success");
+  });
+
+  // Event listener for the change password form submission
+  document.getElementById("change-password-form-element").addEventListener("submit", function (event) {
+    event.preventDefault();
+    // Handle password change logic here
+    const formData = new FormData(event.target);
+    // Create an empty object to store the key-value pairs
+    const dataToSend = {};
+    // Iterate over the FormData entries and populate the new object
+    for (let [key, value] of formData.entries()) {
+      dataToSend[key] = value;
+      //console.log(`Key: ${key}, Value: ${value}`); // Log each key-value pair
+    }
+    // Add user_id to the dataToSend
+    dataToSend["user_id"] = "{{ user_data.id }}"; // Assuming user_data is available in the template context
+
+    console.log("Password change: " + dataToSend["current_password"] + " to "+ dataToSend["new_password"]); // Log the old password for debugging
+    if (dataToSend["new_password"].value !== dataToSend["confirm_password"].value) {
+      displayMessage("New passwords do not match!", "error");
+      return;
+    }
+    // Send the old and new passwords to the server via fetch or AJAX
+    const url = "{% url 'api_update_user' %}"; // Adjust the URL as needed
+    sendAjaxPostRequestJson(url, dataToSend)
+      .then((response) => {
+        const status = response[0];
+        const data = response[1];
+        if (status) {
+          displayMessage("Password updated successfully!", "success");
+        } else {
+          displayMessage(data.error, "error");
+        }
+        window.location.href = "#";
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        displayMessage("An unexpected error occurred.", "error");
+        window.location.href = "#";
+      });
+  });
+
+  // Event listener for the add client form submission
+  document.getElementById("add-client-form-element").addEventListener("submit", function (event) {
+    event.preventDefault();
+    // Handle password change logic here
+    const formData = new FormData(event.target);
+    // Create an empty object to store the key-value pairs
+    const dataToSend = {};
+    // Iterate over the FormData entries and populate the new object
+    for (let [key, value] of formData.entries()) {
+      dataToSend[key] = value;
+      //console.log(`Key: ${key}, Value: ${value}`); // Log each key-value pair
+    }
+    // Add user_id to the dataToSend
+    dataToSend["user_id"] = "{{ user_data.id }}"; // Assuming user_data is available in the template context
+
+    console.log("Password change: " + dataToSend["current_password"] + " to "+ dataToSend["new_password"]); // Log the old password for debugging
+    if (dataToSend["new_password"].value !== dataToSend["confirm_password"].value) {
+      displayMessage("New passwords do not match!", "error");
+      return;
+    }
+    // Send the old and new passwords to the server via fetch or AJAX
+    const url = "{% url 'api_update_user' %}"; // Adjust the URL as needed
+    sendAjaxPostRequestJson(url, dataToSend)
+      .then((response) => {
+        const status = response[0];
+        const data = response[1];
+        if (status) {
+          displayMessage("Password updated successfully!", "success");
+        } else {
+          displayMessage(data.error, "error");
+        }
+        window.location.href = "#";
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        displayMessage("An unexpected error occurred.", "error");
+        window.location.href = "#";
+      });
+
+    displayMessage("Client added successfully!", "success");
+  });
+</script>
+{% endblock %}

@@ -151,12 +151,18 @@ urlpatterns = [
     path('cooking/', views.cooking, name="cooking"),
     path('about/', views.about_view, name="about"),
     path('component/commands/', views.component_commands_view, name="component_command"),
+    path('users/<str:pk>', views.user_page, name="user"),
+    path('users/<str:pk>/edit', views.user_configuration_view, name="user_configuration"),
 
     # API URLs
     # Commands
     path('api/commands/update', views_api.api_update_commands_list, name='api_update_command_list'),
     path('api/commands/list', views_api.api_get_command_list, name='api_get_command_list'),
-    path('api/commands/execute', views_api.api_execute_command, name='api_execute_command'),
+    path('api/commands/execution', views_api.api_execute_command, name='api_execute_command'),
+    # Programs
+    path('api/programs/sync', views_api.api_sync_programs, name='api_sync_programs'),
+    path('api/programs/list', views_api.api_get_program_list, name='api_get_program_list'),
+
     # Accounts
     path('api/accounts/register', views_api.api_register, name="api_register"),
     path('api/accounts/login', views_api.api_login, name="api_login"),

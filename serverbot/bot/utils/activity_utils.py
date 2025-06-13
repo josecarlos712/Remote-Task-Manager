@@ -9,8 +9,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from ..models import Activity
-from .user_utils import get_user_by_id
+from ..models import Activity, get_user_by_id
 
 
 logger = logging.getLogger(__name__)

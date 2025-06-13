@@ -1,9 +1,12 @@
 {% load i18n %}
 <nav>
   <ul>
-    <li><a href="{% url 'create_activity' %}">Activity</a></li>
-    <li><a href="#tab2">Commands</a></li>
-    <li><a href="#tab3">Configuration</a></li>
+    {% if user.is_authenticated %}
+    <li><a href="{% url 'create_activity' %}">New activity</a></li>
+    <li><a href="#programs">Programs</a></li>
+    <li><a href="#commands">Commands</a></li>
+    <li><a href="{% url 'user_configuration' user.id %}">Configuration</a></li>
+    {% endif %}
     <li><a href="{% url 'about' %}">About</a></li>
   </ul>
 </nav>

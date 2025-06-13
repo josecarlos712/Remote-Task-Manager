@@ -1,26 +1,27 @@
-{% load static %}
+<h3>
+  <button type="button" class="button" id="update-button" onclick="" alt="Refresh">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
+      <path
+        d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
+        stroke="white"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </button>
+  <small>(last update: {{now_date|default:"None"}})</small>
+</h3>
+<!-- Display Errors div -->
+<div id="message-display" class="message-box.hidden"></div>
 <div class="commands-grid-container">
-  <h3>
-    <button type="button" class="button" id="update-button" onclick="" alt="Refresh">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
-        <path
-          d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
-          stroke="white"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </button>
-    <small>(last update: {{now_date|default:"None"}})</small>
-  </h3>
   {% for command in commands %}
-  <div class="command-item">
-    <a id="command-{{ command.id }}" class="card-link" onclick="execute_command({{ command.id }})">
-      <h3 class="card-title">{{command.name}}</h3>
-    </a>
+
+  <div class="command-item" data-command-id="{{ command.id }}" data-command-client="{{ command.client_id }}">
+    <a id="command-{{ command.id }}" class="card-link"><h3 class="card-title">{{command.title}}</h3></a><span class="lock" locked="false">c_D</span>
     <em>{{command.description}}</em>
   </div>
+
   {% empty %}
   <div class="empty-message">
     <p>No existen commandos disponibles para {{user.username}}</p>
@@ -28,252 +29,184 @@
   {% endfor %}
 </div>
 <script>
-  // This function runs once the document (web page) is fully loaded
-  document.addEventListener("DOMContentLoaded", function () {
-    // Automatically load the component when the page is loaded
-    // loadProgramComponent(); // Uncomment if you have this function and need it to run on load
-    /**
-     * Attaches a click event listener to a button element by its ID.
-     * When the button is clicked, it calls the executeFunction with the provided function name.
-     *
-     * @param {string} buttonId - The ID of the button element.
-     * @param {string} functionName - The name of the server-side function to execute.
-     */
-    function loadCommand(buttonId, functionName) {
-      const button = document.getElementById(buttonId);
-      if (button) {
-        button.addEventListener("click", function () {
-          console.log(`DEBUG: Button with ID '${buttonId}' clicked. Executing function '${functionName}'.`);
-          executeFunction(functionName);
-        });
-      } else {
-        console.warn(`Button with ID '${buttonId}' not found. Cannot attach command listener.`);
-      }
-    }
-
-    // Attach click event listener to the update button
-    // When clicked, it will call executeFunction with the server-side function ID for updating programs
-    const updateButton = document.getElementById("update-button");
-    if (updateButton) {
-      updateButton.addEventListener("click", function () {
-        // TODO: Confirm the correct function ID for updating programs on the server
-        executeFunction("update_programs");
-      });
-    } else {
-      console.warn("Update button with ID 'update-button' not found.");
-    }
-
-    // Attach click event listener to the test button
-    // When clicked, it will call executeFunction with the server-side function ID for testing programs
-    const testButton = document.getElementById("test-button");
-    if (testButton) {
-      testButton.addEventListener("click", function () {
-        // TODO: Confirm the correct function ID for testing programs on the server
-        executeFunction("test_programs");
-      });
-    } else {
-      console.warn("Test button with ID 'test-button' not found.");
-    }
-
-    // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
-  });
-
-  function get_commands() {
-    // Get all commands from user
-    // Send a GET request to 'api/commands/list'
-    status, commands = sendAjaxGetRequestJson("api/commands/list");
-    if (status !== 200) {
-      console.error("Failed to fetch commands. Status code:", status);
-      return;
-    }
-    console.log("DEBUG: Commands fetched successfully:", commands);
-
-    const commands = {{ commands|safe }};
-    commands.forEach((command, index) => {
-      // Create a button for each command
-      const button = document.createElement("button");
-      button.id = `command-${index}`;
-      button.innerText = command.name;
-      button.addEventListener("click", function () {
-        console.log(`DEBUG: Command '${command.name}' clicked.`);
-        sendCommandExecutionRequest(command.id);
-      });
-      document.body.appendChild(button);
-    });
-  }
-
-  // Function to send the command execution request
-  function execute_command(commandId) {
-    // Retrieve the necesary parameters using the API
-    // Call the executeCommand function with the provided parameters
-    const url = "{% url 'api_execute_command' %}";
-    const clientId = {{ client_id }};
-    const commandId = {{ command.id }};
-    const args = {{ command.args|safe }};
-    const kwargs = {{ command.kwargs|safe }};
-    // Construct the JSON payload to send to the Django server
-    const jsonData = {
-      client_id: clientId,
-      command_id: commandId,
-      args: args, // Include positional arguments
-      kwargs: kwargs, // Include keyword arguments
-    };
-    console.log(`DEBUG: Executing command '${commandId}' on client ID '${clientId}' with args: ${args} and kwargs: ${kwargs}`);
-    // Call the function to execute the command
-    sendAjaxPostRequestJson(url, jsonData)
-      .then(([success, responseData]) => {
-        if (success) {
-          // Handle successful command execution
-          console.log("Command executed successfully:", responseData);
-          // Optionally, update the UI or show a success message
-        } else {
-          // Handle command execution failure
-          console.error("Command execution failed:", responseData);
-          // Optionally, show an error message to the user
-        }
-      })
-      .catch((error) => {
-        console.error("Error executing command:", error);
-        // Optionally, show an error message to the user
-      });
-    return;
-  }
+  
 </script>
 <style>
-  .button {
-    width: packed; /* Adjust width to fit content */
-    background-color: var(--color-button); /* A standard blue color */
-    color: white;
+  /* Base styles for the refresh button h3 */
+  h3 {
+    display: flex; /* Make h3 a flex container */
+    align-items: center; /* Vertically align items */
+    gap: 10px; /* Space between button and text */
+    color: var(--color-text);
+    font-size: 1.2em;
+    margin-bottom: 0;
+  }
+
+  h3 button.button {
+    background-color: var(--color-button);
+    color: white; /* Ensure SVG stroke can be white against this background */
     border: none;
-    border-radius: 5px;
-    font-size: 1.1em;
+    padding: 8px;
+    border-radius: 6px;
     cursor: pointer;
+    display: flex; /* Flex to center SVG */
+    align-items: center;
+    justify-content: center;
     transition: background-color 0.3s ease;
   }
 
-  .button:hover {
-    background-color: var(--color-button-hover); /* Darker blue on hover */
-    cursor: pointer;
+  h3 button.button:hover {
+    background-color: var(--color-button-hover);
   }
 
-  .svg-icon {
-    display: block;
-    background-color: inherit; /* Inherit background color from button */
-    border-radius: 4px;
-    transition: background-color 0.3s ease; /* Smooth transition */
+  h3 small {
+    color: var(--color-text-body);
+    font-size: 0.8em;
   }
 
+  /* Base styles for the commands grid container */
   .commands-grid-container {
     display: grid;
     /* Default: 3 columns on larger screens */
     grid-template-columns: repeat(3, 1fr);
     gap: 20px; /* Space between grid items */
-    padding: .5em; /* Optional: padding around the grid */
+    padding: 0.5em; /* Optional: padding around the grid */
     max-width: 1200px; /* Limit max width of the grid container */
-    margin: 0 auto; /* Center the grid container */
+    margin: 20px auto; /* Center the grid container and add space from elements above */
   }
 
+  /* Styling for individual command items */
   .command-item {
-    border: 1px solid var(--color-foregroud); /* Example: Add a border to each command item */
+    border: 1px solid var(--color-foregroud);
     padding: 15px;
     border-radius: 8px;
     background-color: var(--color-background);
-    display: flex; /* Make the item a flex container */
-    flex-direction: column; /* Stack content vertically */
-    /* Ensure content doesn't overflow its own box */
-    overflow: hidden;
-  }
-
-  /* Fluid Typography for command Title */
-  .command-item h3 {
-    /* Scales from 1rem (min) to 1.2em (max), using 4vw as preferred value */
-    font-size: clamp(0.5rem, 4vw, 1.2em);
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: var(--color-text);
-    word-wrap: break-word; /* Prevents long words from overflowing */
-  }
-
-  /* Fluid Typography for Meta Information */
-  .command-item .meta {
-    /* Scales from 0.75rem (min) to 0.85em (max), using 2.5vw as preferred value */
-    font-size: clamp(0.75rem, 2.5vw, 0.85em);
-    color: var(--color-text-body);
-    margin-bottom: 10px;
-    line-height: 1.4;
-    word-wrap: break-word;
-  }
-
-  /* Fluid Typography for Description */
-  .command-item p:not(.meta) {
-    /* Targets the description paragraph */
-    /* Scales from 0.85rem (min) to 0.95em (max), using 3vw as preferred value */
-    font-size: clamp(0.85rem, 3vw, 0.95em);
-    color: var(--color-text-body);
-    line-height: 1.5;
-    margin-bottom: 0;
-    flex-grow: 1; /* Allows description to take up available space */
-    word-wrap: break-word;
+    /* KEY CHANGES HERE: Make command-item a flex container that allows wrapping */
+    display: flex;
+    flex-direction: row; /* Arrange direct children in a row initially */
+    flex-wrap: wrap; /* Allow children to wrap to the next line */
+    align-items: center; /* Vertically align items in the same row */
+    gap: 8px; /* Add a small gap between inline elements (link and spans) */
+    overflow: hidden; /* Ensure content doesn't overflow its own box */
   }
 
   /* Style for the link wrapping the command title */
-  .command-item a {
-    text-decoration: none; /* Remove underline */
-    color: inherit; /* Inherit color from parent */
-    display: block; /* Make the link a block element */
+  .command-item a.card-link {
+    text-decoration: none;
+    color: inherit;
+    /* Make the link grow/shrink with content, allow it to take available space */
+    flex-grow: 1; /* Allow link to take up available space in the row */
+    flex-shrink: 1; /* Allow link to shrink if needed */
+    min-width: 0; /* Crucial for allowing text to shrink below its intrinsic size */
+    word-break: break-word; /* Allows long titles to break if necessary */
+    /* Remove default h3 margins that might affect flex layout */
+    margin: 0; /* Remove default h3 margins that might affect flex layout */
   }
 
-  /* Style for the date and time spans within meta */
-  .command-item .meta span {
-    margin-left: 5px; /* Add space between parts */
+  .command-item a.card-link:hover {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
   }
 
-  /* Styles for the empty message */
+  /* Style for the h3 inside the link (title) */
+  .command-item h3.card-title {
+    /* No need for display:flex here as .command-item handles the row layout */
+    margin: 0; /* Remove default h3 margins to prevent unwanted spacing */
+    padding: 0; /* Remove default h3 padding */
+    color: var(--color-text);
+    /* Fluid Typography for command Title */
+    font-size: clamp(1rem, 4vw, 1.2em); /* Adjusted min for better readability */
+    white-space: normal; /* Ensure text wraps */
+    word-wrap: break-word; /* Prevents long words from overflowing */
+  }
+
+  /* Styles for your lock indicator spans */
+  .lock {
+    /* Styles for your lock indicator spans */
+    background-color: var(--color-button);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    white-space: nowrap; /* Prevent "cD" or "c_D" from wrapping */
+    min-width: 30px; /* Ensure a minimum width for consistent appearance */
+    text-align: center;
+    flex-shrink: 0; /* Prevent lock spans from shrinking */
+    transition: background-color 0.2s ease, filter 0.2s ease;
+  }
+
+  .lock:hover {
+    cursor: pointer;
+    filter: brightness(0.8);
+  }
+
+  .lock[locked="true"] {
+    background-color: #dc3545; /* Red for locked */
+  }
+
+  .lock[locked="false"] {
+    background-color: #28a745; /* Green for unlocked */
+  }
+
+  .hidden {
+    display: none !important; /* Forces the element to be hidden and removed from layout */
+  }
+
+  /* Style for the command description (em tag) */
+  .command-item em {
+    color: var(--color-text-body);
+    font-size: 0.9em;
+    flex-basis: 100%; /* Force the description to take full width and go to next line */
+    margin-top: 10px; /* Add space between the first row and the description */
+    word-wrap: break-word;
+  }
+
   .empty-message {
-    text-align: center; /* Center the text */
-    padding: 40px; /* Increased padding */
-    grid-column: 1 / -1; /* Make it span across all grid columns */
-    color: var(--color-text-body); /* Use body text color */
-    font-size: 1.1em; /* Slightly larger font size */
-    font-style: italic; /* Italicize the text */
-    background-color: var(--color-background); /* Use background color */
-    border: 1px dashed var(--color-foregroud); /* Dashed border */
-    border-radius: 8px; /* Rounded corners */
-    margin: 20px auto; /* Center the block and add vertical margin */
-    max-width: 600px; /* Optional: Limit max width for better centering */
-    width: 100%; /* Ensure it takes full width up to max-width */
+    text-align: center;
+    padding: 40px;
+    grid-column: 1 / -1;
+    color: var(--color-text-body);
+    font-size: 1.1em;
+    font-style: italic;
+    background-color: var(--color-background);
+    border: 1px dashed var(--color-foregroud);
+    border-radius: 8px;
+    margin: 20px auto;
+    max-width: 600px;
+    width: 100%;
   }
 
-  /* Ensure the paragraph inside empty-message doesn't have extra margin */
   .empty-message p {
     margin: 0;
   }
 
-  /* --- Responsive Grid Adjustments --- */
-
-  /* For medium screens (e.g., tablets) - 2 columns */
   @media (max-width: 1300px) {
     .commands-grid-container {
       grid-template-columns: repeat(2, 1fr);
-      gap: 15px; /* Slightly reduce gap */
+      gap: 15px;
     }
-    /* Adjust padding for command items if needed on medium screens */
     .command-item {
       padding: 12px;
     }
   }
 
-  /* For small screens (e.g., mobile phones) - 1 column */
   @media (max-width: 800px) {
     .commands-grid-container {
-      grid-template-columns: 1fr; /* Single column */
-      gap: 10px; /* Further reduce gap */
+      grid-template-columns: 1fr;
+      gap: 10px;
     }
-    /* Adjust padding for command items on small screens */
     .command-item {
       padding: 10px;
     }
-    /* Adjust empty message padding for smaller screens */
+
+    .command-item h3.card-title {
+      /* Fluid Typography for command Title */
+      font-size: clamp(0.5rem, 4vw, 1.2em); /* Adjusted min for better readability */
+      white-space: normal; /* Ensure text wraps */
+      word-wrap: break-word; /* Prevents long words from overflowing */
+    }
+
     .empty-message {
       padding: 20px;
     }

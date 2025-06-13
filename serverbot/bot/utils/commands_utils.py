@@ -1,7 +1,9 @@
 import logging
 from datetime import datetime
+from typing import Dict, Optional
 
 import requests
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 import logging
 import json
@@ -10,7 +12,7 @@ import os
 from django.db import transaction
 from django.db.models import QuerySet
 
-from ..config import init_config
+from ..config import init_config, config
 from ..config.init_config import Configuration
 from ..models import Command, Client, UserSettings
 from .utils import check_None, check_instance
@@ -20,6 +22,7 @@ from . import user_utils, clients_utils
 logger = logging.getLogger(__name__)
 
 
+# ---- From Data Base ----
 # Utility function to get a command by ID
 def get_command_by_id(command_id: str) -> tuple[Command | str, int]:
     """
@@ -37,7 +40,7 @@ def get_command_by_id(command_id: str) -> tuple[Command | str, int]:
         return f"Invalid type for command_id: expected str, got {type(command_id)}", 400
 
     try:
-        command = Command.objects.get(command_id=command_id)
+        command = Command.objects.get(pk=command_id)
         return command, 200
     except ObjectDoesNotExist:
         logger.warning(f"Command with ID '{command_id}' not found.")
@@ -47,42 +50,36 @@ def get_command_by_id(command_id: str) -> tuple[Command | str, int]:
         return f"Error retrieving command '{command_id}': {e}", 500
 
 
-# Utility function to get the command list from a client
-def get_command_list(parameters: dict) -> tuple[QuerySet[Command] | str, int]:
+# Get command list by client ID from the database.
+def get_command_list_by_client(client_id: int) -> tuple[list[Command], int] | tuple[str, int]:
     """
-    Retrieves the command list from the client application.
-    This function sends a GET request to the client and returns the response.
-    Args:
-        parameters (dict): A dictionary containing the parameters for the request.
-                           Receives the client_id.
-    Returns:
-        tuple: A tuple containing the response data and the HTTP status code.
-    """
-    # Check if the parameters dictionary contains the expected keys and types
-    expected_types = {
-        "client_id": int,
-    }
-    for key, expected_type in expected_types.items():
-        if key in parameters and not isinstance(parameters[key], expected_type):
-            return f"Invalid type for parameter {key}: expected {expected_type}, got {type(parameters[key])}", 400
-    # Gather the parameters from the request in a dictionary and ignore the rest
-    parameters = {key: value for key, value in parameters.items() if key in expected_types}
-    # Get the client object by ID
-    client, code = clients_utils.get_client_by_id(parameters["client_id"])
-    if code != 200:
-        logger.error(f"Client with ID {parameters['client_id']} not found.")
-        return client, code  # Return an error message if the client is not found
+    Retrieves the command list for a specific client from the database.
 
-    # Get all the commands from the database
+    Args:
+        client_id (int): The ID of the client whose command list is to be retrieved.
+
+    Returns:
+        tuple: A tuple containing the command list (as a dictionary) and the HTTP status code.
+               If the client is not found, returns an error message and status code.
+    """
     try:
-        commands = Command.objects.filter(client=client)
-        return commands, 200  # Return the command list and status code
-    except ObjectDoesNotExist:
-        logger.warning(f"No commands found for client {client}.")
-        return f"No commands found for client {client}.", 404
+        # Get the client by ID
+        client, code = clients_utils.get_client_by_id(client_id)
+        if code != 200:
+            logger.error(f"Client with ID {client_id} not found.")
+            return client, 404  # Return an error message if the client is not found
+
+        # Retrieve the command list from the database
+        commands_list = Command.objects.filter(client=client)
+        if not commands_list.exists():
+            logger.warning(f"No commands found for client {client_id}.")
+            return [], 200  # Return an empty list if no commands are found
+
+        return commands_list, 200  # Return the command list and status code
+
     except Exception as e:
-        logger.error(f"Error retrieving commands for client {client}: {e}", exc_info=True)
-        return f"Error retrieving commands for client {client}: {e}", 500
+        logger.error(f"Error retrieving commands for client {client_id}: {e}", exc_info=True)
+        return f"Error retrieving commands for client {client_id}: {e}", 500  # Internal Server Error
 
 
 # Get the command list for a specific user from the database. Uses get_command_list for each client.
@@ -108,13 +105,17 @@ def get_command_list_by_user(user_id: int) -> tuple[list[Command], int] | tuple[
         command_list = []
         for client in clients:
             # Get the command list from the database, assuming the commands on the client are synchronized with the database
-            commands, code = get_command_list({'client_id': client.id})
-            if code != 200:
-                logger.error(f"Error retrieving command list from client {client.id}: {commands}")
-                continue  # Skip this client if there's an error
+            try:
+                commands_list, code = get_command_list_by_client(client.id)
+                if code != 200:
+                    logger.error(f"Error retrieving commands for client {client.id}: {commands_list}")
+                    return commands_list, code
+            except Exception as e:
+                logger.error(f"Error retrieving commands for client {client.id}: {e}", exc_info=True)
+                return f"Error retrieving commands for client {client.id}: {e}", 500
 
             # Add commands to the command list
-            command_list.extend(commands)
+            command_list.extend(commands_list)
 
         return command_list, 200  # Return the command list and status code
 
@@ -124,46 +125,43 @@ def get_command_list_by_user(user_id: int) -> tuple[list[Command], int] | tuple[
 
 
 # Utility function to synchronize a command entry from a dictionary with the database.
-def sync_command_from_dict(command_id: str, details: dict) -> tuple[Command | str, int]:
+def upload_command_from_dict(client: Client, name: str, title: str, description: str, args: list,
+                             command_id: Optional[str] = None) -> tuple[Command | str, int]:
     """
     Synchronizes a single command entry from a dictionary with the database.
     Creates or updates a Command object based on the provided details.
     Commands are vinculated to a client. The database contains all the available commands from every client on the local network.
 
     Args:
-        command_id (str): The unique identifier for the command (the key from the JSON).
-        details (dict): A dictionary containing the command's details (name, description, args).
+        client (Client): The Client object to which the command belongs.
+        name (str): The name of the command.
+        title (str): The title of the command.
+        description (str): A brief description of the command.
+        args (list): A list of argument types for the command.
+        command_id (Optional[str]): The unique identifier for the command. If None, a new command will be created.
 
     Returns:
         Command or None: The created or updated Command object on success, None on failure.
     """
-    # Ensure essential keys exist in the details dictionary
-    expected_types = {
-        "name": str,
-        "description": str,
-        "args": list,
-    }
-    for key, expected_type in expected_types.items():
-        if key not in details or not isinstance(details[key], expected_type):
-            logger.error(f"sync_command_from_dict() - Invalid type for '{key}': expected {expected_type}, got {type(details[key])}")
-            return f"sync_command_from_dict() - Invalid type for '{key}': expected {expected_type}, got {type(details[key])}", 400
-
-    # Extract command details
-    parameters = {
-        "name": details["name"],
-        "description": details["description"],
-        "args": details["args"],
-    }
 
     try:
         # Use get_or_create to find an existing command or create a new one
+        if not command_id:
+            # If command_id is not provided, create a new command on the DB
+            command, created = Command.objects.get_or_create(
+                client=client,
+                name=name,
+                title=title,
+                description=description,
+                args=args
+            )
         command, created = Command.objects.get_or_create(
             command_id=command_id,
-            defaults={
-                'name': details['name'],
-                'description': details['description'],
-                'args': details['args']
-            }
+            client=client,
+            name=name,
+            title=title,
+            description=description,
+            args=args
         )
         # If created is True, notify a new command was created
         if created:
@@ -172,10 +170,10 @@ def sync_command_from_dict(command_id: str, details: dict) -> tuple[Command | st
         else:
             # Check if the existing command's details need updating
             # Compare name, description, handler and args
-            if command.name != parameters['name'] or command.description != parameters['description'] or command.args != parameters['args']:
-                command.name = parameters['name']
-                command.description = parameters['description']
-                command.args = parameters['args']
+            if command.name != name or command.description != description or command.args != args:
+                command.name = name
+                command.description = description
+                command.args = args
                 command.save()  # Save the changes to the database
                 logger.info(f"Updated existing command: {command_id}")
             # Case 1: Exists and is identical - implicitly handled by get_or_create not updating defaults
@@ -191,74 +189,75 @@ def sync_command_from_dict(command_id: str, details: dict) -> tuple[Command | st
         return f"Error processing command {command_id} during DB operation: {e}", 500  # Indicate failure to process this specific command
 
 
+# ---- From Client ----
+
 # Utility function to update the command list for a specific client. Uses sync_command_from_dict for each command.
-def update_commands_list(client_obj: Client, command_dict: dict) -> bool:
+def sync_commands_list(user: User) -> tuple[str, int]:
     """
-    Synchronizes the command list for a specific client in the database
-    based on a dictionary received from the client application.
+    Synchronizes the command list for a specific client in the database.
 
     This function handles creating, updating, and deleting Command objects
-    for the given client.
-
-    Args:
-        client_obj (Client): The Client object representing the client sending the command list.
-        command_dict (dict): A dictionary where keys are command_id strings
-                             and values are dictionaries containing command details
-                             (e.g., {'name': '...', 'description': '...', 'args': [...]}).
+    for the request user.
 
     Returns:
-        bool: True if the synchronization process completed without critical errors,
-              False otherwise. Note: Individual command processing errors might be logged
-              without causing the entire function to return False.
+        tuple: A tuple containing a success or error message and HTTP status code.
     """
-    check_None(client_obj, "update_command_list() - Received None client object.")
-    check_None(command_dict, "update_command_list() - Received None command_dict.")
+    message, code = check_None(user, "update_command_list() - Received None client object.")
+    if code != 200:
+        logger.error(message)
+        return message, code
+    message, code = check_instance(user, User, "update_command_list() - Received invalid client object.")
+    if code != 200:
+        logger.error(message)
+        return message, code
 
-    check_instance(client_obj, Client, "update_command_list() - Received invalid client object.")
-    check_instance(command_dict, dict,
-                   f"update_command_list() - Invalid command_dict format provided. Expected a dictionary, got {type(command_dict)}.")
+    clients, code = clients_utils.get_clients_by_user(user.pk)
+    if code != 200:
+        logger.error(f"Failed to retrieve clients for user {user.pk}: {clients}")
+        return clients, code
 
-    logger.info(f"Starting command list synchronization for client: {client_obj}")
+    # Skips the client if there is some error retrieving the commands
+    for client_obj in clients:
+        # Synchronize the command list for each client
+        logger.info(f"Starting command list synchronization for client: {client_obj}")
 
-    try:
-        # Use a transaction to ensure atomicity: either all changes succeed or none do.
-        with transaction.atomic():
-            # Get all existing command_ids for this client from the database
-            existing_commands_qs = Command.objects.filter(client=client_obj)
-            existing_command_ids = set(existing_commands_qs.values_list('command_id', flat=True))
+        # Send GET request to the client to retrieve the current command list
+        response, code = clients_utils.send_client_get_request(client_obj, "api/commands/list")
+        if code != 200:
+            logger.error(f"Failed to retrieve command list from client {client_obj}: {response}")
+            continue  # Return the error message and status code
 
-            # Get command_ids from the received dictionary
-            received_command_ids = set(command_dict.keys())
+        logger.debug(f"Received command list from client {client_obj}: {response}")
+        logging.info(f"Updating command list for client {client_obj}.")
 
-            # --- Process received commands (Create or Update) using the helper function ---
-            for command_id, details in command_dict.items():
-                # Call the sync_command_from_dict helper function for each command
-                # Pass the client_obj to link the command correctly
-                synced_command = sync_command_from_dict(command_id, details)
+        # Get commandsd from the 'data' key in the response
+        command_list = response["data"]
+        if not isinstance(command_list, list):
+            logger.error(f"Invalid command list format received from client {client_obj}. Expected a list.")
+            continue
 
-                # The helper function logs errors internally and returns None on failure
-                if synced_command is None:
-                    logger.warning(f"Failed to sync command '{command_id}' for client {client_obj}. Skipping.")
-                    # Continue processing other commands even if one fails to sync
+        for command in command_list:
+            # Check if the command has the required keys
+            required_keys = ["title", "name", "description", "args_types"]
+            for key in required_keys:
+                if key not in command:
+                    logger.error(f"Command missing required key '{key}': {command}")
+                    continue
+            # Prepare the command details for synchronization
+            details = {
+                "client": client_obj,  # The client object to which the command belongs
+                "name": command["name"],
+                "title": command["title"],
+                "description": command["description"],
+                "args": command.get("args_types", []),  # Default to empty list if not provided
+            }
+            # Synchronize the command with the database
+            result, code = upload_command_from_dict(**details)
+            if code != 200:
+                logger.error(f"Error synchronizing command {command}: {result}")
+                continue
 
-            # --- Delete commands not in the received dictionary ---
-            commands_to_delete_ids = existing_command_ids - received_command_ids
-            if commands_to_delete_ids:
-                # Filter commands for this specific client before deleting
-                deleted_count, _ = existing_commands_qs.filter(command_id__in=commands_to_delete_ids).delete()
-                logger.info(
-                    f"Deleted {deleted_count} commands for client {client_obj} not found in received list: {commands_to_delete_ids}")
-            else:
-                logger.info(f"No commands to delete for client {client_obj}.")
-
-        logger.info(f"Command list synchronization completed for client: {client_obj}")
-        return True  # Indicate overall success
-
-    except Exception as e:
-        # Catch any exceptions that occur outside the per-command loop (e.g., transaction error)
-        logger.error(f"An unexpected error occurred during command list synchronization for client {client_obj}: {e}",
-                     exc_info=True)
-        return False  # Indicate overall failure
+    return f"Command list for client {client_obj} updated successfully.", 200  # Indicate that the command list was successfully updated
 
 
 # Utility function to remove a command from the database by its ID
@@ -322,21 +321,25 @@ def get_command_list_from_client(parameters: dict) -> tuple[dict | str, int]:
     # Get the client object by ID
     client, code = clients_utils.get_client_by_id(parameters["client_id"])
     if code != 200:
+        client: str
         logger.error(f"Client with ID {parameters['client_id']} not found.")
         return client, code  # Return an error message if the client is not found
+    client: Client
 
     # Send a GET request to the client to retrieve the command list
+    api_endpoint = f"api/commands/list"
     try:
-        response = send_client_get_request(client.id, "command_list")
-        if response.status_code == 200:
+        response, code = send_client_get_request(client.pk, api_endpoint)
+        if code == 200:
             command_list = json.loads(response.text)
+            logger.info(f"Successfully retrieved command list from client {client.pk}: {command_list}")
             return command_list, 200  # Return the command list and status code
         else:
-            logger.error(f"Error retrieving command list from client {client.id}: {response.status_code}")
-            return f"Error retrieving command list from client {client.id}: {response.status_code}", response.status_code
+            logger.error(f"Error retrieving command list from client {client.pk}: {response.status_code}")
+            return f"Error retrieving command list from client {client.pk}: {response.status_code}", response.status_code
     except requests.RequestException as e:
-        logger.error(f"Request error while retrieving command list from client {client.id}: {e}", exc_info=True)
-        return f"Request error while retrieving command list from client {client.id}: {e}", 500  # Internal Server Error
+        logger.error(f"Request error while retrieving command list from client {client.pk}: {e}", exc_info=True)
+        return f"Request error while retrieving command list from client {client.pk}: {e}", 500  # Internal Server Error
 
 
 # Get last update of the command list
@@ -347,5 +350,11 @@ def get_last_command_update() -> datetime:
     Returns:
        datetime : The last update timestamp.
     """
-    updated_time: str = Configuration["SystemStatistics"]["last_command_update"]
-
+    updated_time: str = config.configuration["SystemStatistics"]["last_command_update"]
+    if updated_time:
+        try:
+            return datetime.fromisoformat(updated_time)
+        except ValueError as e:
+            logger.error(f"Invalid date format in configuration: {updated_time}. Error: {e}")
+    else:
+        logger.warning("No last command update timestamp found in configuration.")

@@ -38,29 +38,37 @@
         // if (confirm("¿Estás seguro de que quieres cerrar sesión?")) {
         const xhr = new XMLHttpRequest();
         const url = '{% url "api_logout" %}'; // Make sure this URL is defined in your urls.py
+        console.log("DEBUG: Sending logout request to URL:", url);
 
-        sendAjaxGetRequest(url);
-        window.location.reload(); // Reload the page after logout
-        // }
+        sendAjaxGetRequest(url)
+          .then(([success, responseData]) => {
+            if (success) {
+              // Handle successful login (API status 'success')
+              console.log("Logout successful:", responseData);
+              //alert("Inicio de sesión exitoso!");
+              // Redirect to home/dashboard
+              window.location.reload(); // Reload home page
+            } else {
+              // Handle login failure (API status 'error' or HTTP error)
+              console.error("Logout failed:", responseData);
+              // Assumes displayErrors is defined and accessible
+              if (typeof displayErrors === "function" && responseData && responseData.data) {
+                // If responseData.data contains validation errors, display them
+              } else if (responseData && responseData.message) {
+                // Handle API errors (e.g., 400 Bad Request, 500 Internal Server Error)
+                const errorMessage = result.message || "An unknown error occurred.";
+                console.error("API Error:", result);
+              } else {
+                alert("An unexected error ocurred during logout.");
+              }
+            }
+          })
+          .catch((error) => {
+            // Handle network errors or CSRF token missing
+            console.error("Login request failed:", error);
+            alert("Error en la solicitud de inicio de sesión: " + error);
+          });
       });
-    } else {
-      console.log("User is NOT authenticated (logout link not found).");
-    }
-
-    // --- Include the getCookie function here or ensure it's accessible ---
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-          let cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === name + "=") {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
     }
   });
 </script>

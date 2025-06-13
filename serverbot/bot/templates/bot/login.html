@@ -1,40 +1,99 @@
-{% extends 'main.html' %} {% load static %} {% block baseblock %}
-<div class="vertical-container">
-  <form id="form_login" method="post">
-    {% csrf_token %}
-    <h2 class="activity-title">Login</h2>
+{% extends "main.html" %} {% load static %} {% block title %}Login{% endblock %} {% block baseblock %}
+<div class="form-container">
+  {# Apply the form-container class #}
+  <h1>Login</h1>
+  {# Or your login page title #}
+  <div id="message-display" class="message-box" style="display: none"></div>
+  {# Optional: for displaying messages #}
 
-    {% if error %}
-    <div class="error-message">
-      <p style="color: red">{{ error }}</p>
-    </div>
-    {% endif %}
-
-    <div class="form-group">
-      <label for="username">Username:</label>
-      <input type="text" id="username" name="username" required autocomplete="on" />
-    </div>
+  <form method="post" id="form_login">
+    {# Give your form an ID if you want JS validation #} {% csrf_token %} {# Assuming your Django form fields are 'username' and 'password' #}
+    <div class="form-group">{# Wrap each field in a form-group #} <label for="id_username">Username:</label> {# Use Django's auto-generated ID for labels #} <input type="text" id="id_username" name="username" required /> {# Adjust name/id based on your form #}</div>
 
     <div class="form-group">
-      <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required autocomplete="on" />
+      <label for="id_password">Password:</label>
+      <input type="password" id="id_password" name="password" required /> {# Add type="password" #}
     </div>
 
-    <button type="submit" class="btn">Login</button>
+    <button type="submit" class="form-submit-button">Log In</button> {# Apply the button class #}
   </form>
 </div>
+<style>
+  .form-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: var(--color-background);
+    border: 1px solid var(--color-foregroud);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: var(--color-text);
+  }
+
+  .form-group input[type="text"],
+  .form-group input[type="password"],
+  .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 1em;
+    color: var(--color-text-body);
+    background-color: var(--color-background-light);
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  .form-submit-button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    background-color: var(--color-button);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .form-submit-button:hover {
+    background-color: var(--color-button-hover);
+    cursor: pointer;
+  }
+
+</style>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     // --- Login Form Logic ---
-
     const loginForm = document.getElementById("form_login");
+    const messageDisplay = document.getElementById("message-display");
     // Check if the login form exists on the page
     if (loginForm) {
-      const loginUsernameInput = document.getElementById("username");
-      const loginPasswordInput = document.getElementById("password");
+      const loginUsernameInput = document.getElementById("id_username");
+      const loginPasswordInput = document.getElementById("id_password");
 
       loginForm.addEventListener("submit", function (event) {
         event.preventDefault(); // Prevent the default form submission
+
+        // Clear previous messages
+        messageDisplay.style.display = "none";
+        messageDisplay.className = "message-box";
+        messageDisplay.textContent = "";
 
         // Gather login data from input fields
         const loginData = {
@@ -45,23 +104,25 @@
         const loginUrl = '{% url "api_login" %}'; // Get the API login URL
 
         sendAjaxPostRequestJson(loginUrl, loginData)
-          .then(([success, responseData]) => {
+          .then(([success, response]) => {
             if (success) {
               // Handle successful login (API status 'success')
-              console.log("Login successful:", responseData);
-              //alert("Inicio de sesión exitoso!");
+              console.log("Login successful:", response.message || "Login successful!");
+              displayMessage("Inicio de sesión exitoso!", "success");
               // Redirect to home/dashboard
               window.location.href = "{% url 'home' %}"; // Redirect to home page
             } else {
               // Handle login failure (API status 'error' or HTTP error)
-              console.error("Login failed:", responseData);
+              console.error("Login failed:", response);
               // Assumes displayErrors is defined and accessible
-              if (typeof displayErrors === "function" && responseData && responseData.data) {
+              if (typeof displayErrors === "function" && response && response.error) {
                 // If responseData.data contains validation errors, display them
-                displayErrors(responseData.data);
-              } else if (responseData && responseData.message) {
-                // Display a general error message from the API response
-                alert("Error al iniciar sesión: " + responseData.message);
+                displayMessage(response.error, "error");
+              } else if (response && response.message) {
+                // Handle API errors (e.g., 400 Bad Request, 500 Internal Server Error)
+                const errorMessage = response.message || "An unknown error occurred.";
+                displayMessage(`Error: ${errorMessage}`, "error");
+                console.error("API Error:", result);
               } else {
                 alert("Ocurrió un error al iniciar sesión.");
               }
@@ -78,6 +139,12 @@
       // are assumed to be defined and accessible in the scope where this script runs.
     } else {
       console.log("DEBUG: Login form element not found.");
+    }
+
+    function displayMessage(message, type) {
+      messageDisplay.textContent = message;
+      messageDisplay.className = `message-box ${type}`;
+      messageDisplay.style.display = "block";
     }
   });
 </script>

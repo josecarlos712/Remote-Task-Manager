@@ -1,6 +1,6 @@
 {% extends 'main.html' %} {% block title %}{{ activity.name }}{% endblock %} {% block baseblock %}
 <div class="main-container">
-  <h1>{{ activity.name }}</h1>
+  <h1>{{ activity.title }}</h1>
   <p class="activity-meta">Creado por {% if activity.user_name %}@{{ activity.user_name }}{% else %} [eliminado] {% endif %} <span class="date-ago" data-date="{{ activity.created }}">{{ activity.created|date:"d M Y H:i" }}</span></p>
   <div class="activity-description">
     <p>{{ activity.description }}</p>
@@ -39,7 +39,7 @@
     <div class="chat-message">
       <div class="message-header">
         <strong>{{ message.user_username|default:"Unknown User" }}</strong>
-        <span class="date-ago" data-date="{{ message.created }}">{{ message.created|date:"d M Y H:i" }}</span>
+        <span class="date-ago" data-date="{{ message.created }}">{{ message.created|date:"c" }}</span>
       </div>
       <div class="message-content">
         <p>{{ message.body }}</p>
@@ -78,6 +78,7 @@
           console.log("Message sent successfully:", response);
           // Optionally, clear the form or update the UI
           document.getElementById("messageForm").reset();
+          // Refresh the message list container with the new message
         } else {
           console.error("Error sending message:", response);
         }
@@ -159,7 +160,7 @@
     padding: 20px; /* Adds padding inside the container */
     border: 1px solid var(--color-foregroud); /* Use color variable for border */
     border-radius: 8px; /* Rounds the corners */
-    background-color: var(--color-background-container); /* Use color variable for background */
+    background-color: var(--color-background); /* Use color variable for background */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* More subtle shadow */
     font-family: sans-serif; /* Use a common sans-serif font */
     color: var(--color-text-body); /* Default text color for container */
@@ -211,6 +212,7 @@
   /* Container for the new message input area */
   .new-message-area {
     margin-bottom: 20px; /* Space below the input area */
+    background-color: var(--color-background); /* Use color variable for light background */
   }
 
   .new-message-area h3 {
@@ -231,7 +233,7 @@
     min-height: 100px; /* Increased minimum height */
     resize: vertical; /* Allows only vertical resizing */
     margin-bottom: 10px; /* Space below textarea */
-    background-color: var(--color-background); /* Use color variable for background */
+    background-color: var(--color-background-light); /* Use color variable for background */
     color: var(--color-text-body); /* Use color variable for text */
   }
 

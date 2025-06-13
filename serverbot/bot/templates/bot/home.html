@@ -1,25 +1,16 @@
 <!-- prettier-ignore -->
-{% extends 'main.html' %}
-{% block title %} Server Bot {% endblock %} 
+{% extends 'main.html' %} {% load static %}
+{% block title %} Server Bot {% endblock %}
 {% block baseblock %}
-{% load static %}
 <!-- prettier-ignore-attribute -->
 <div id="component_activity"></div>
 {% if user %}
+<a id="programs"></a>
 <div id="component_program"></div>
+<a id="commands"></a>
 <div id="component_command"></div>
 {% endif %}
-
-<div>
-  <h2>Configuration</h2>
-  <p>Information about configuring the Telegram Bot Manager...</p>
-</div>
-
-<div>
-  <h2>About</h2>
-  <p>Remote Task Manager v24.1023.01</p>
-  <p>A compilation of utilities to manage your own PC using a Telegram bot to send commands.</p>
-</div>
+<!-- Home Script -->
 <script>
   // This function runs once the document (web page) is fully loaded
   document.addEventListener("DOMContentLoaded", function () {
@@ -35,6 +26,8 @@
           .then((response) => response.text())
           .then((html) => {
             activityContainer.innerHTML = html;
+            // Run every DOMlistener in the included components
+            ActivityDOMLoaded(activityContainer);
           })
           .catch((error) => {
             console.error("Error loading activity component:", error);
@@ -51,6 +44,8 @@
           .then((response) => response.text())
           .then((html) => {
             commandContainer.innerHTML = html;
+            // Run every DOMlistener in the included components
+            CommandDOMLoaded(commandContainer);
           })
           .catch((error) => {
             console.error("Error loading command component:", error);
@@ -67,6 +62,8 @@
           .then((response) => response.text())
           .then((html) => {
             programContainer.innerHTML = html;
+            // Run every DOMlistener in the included components
+            ProgramDOMLoaded(programContainer);
           })
           .catch((error) => {
             console.error("Error loading program component:", error);
@@ -75,7 +72,169 @@
         console.warn("Program container not found.");
       }
     }
+
+    function ActivityDOMLoaded(document) {
+      console.log("Activity component loaded, running DOM loaded trigger function");
+      const messageDates = document.querySelectorAll(".date-ago");
+      messageDates.forEach((span) => {
+        const rawDate = span.getAttribute("data-date");
+        //console.log("Raw date:", rawDate);
+        span.textContent = timeAgo(rawDate);
+      });
+    }
+
+    function ProgramDOMLoaded(document) {
+      console.log("Programs component loaded, running DOM loaded trigger function");
+    }
   });
+</script>
+<!-- Command Component Script -->
+<script>
+  // This function runs once the document (web page) is fully loaded
+  function CommandDOMLoaded(commandContainer) {
+    // Automatically load the component when the page is loaded
+    console.log("Commands component loaded, running DOM loaded trigger function");
+    // loadProgramComponent(); // Uncomment if you have this function and need it to run on load
+    function toggleLockState(clickedSpan) {
+      // Check the current 'locked' attribute value
+      const isCurrentlyLocked = clickedSpan.getAttribute("locked") === "true";
+      //console.log(`DEBUG: Lock state toggled for span with ID '${clickedSpan.id}'. Currently locked: ${isCurrentlyLocked}`);
+      if (isCurrentlyLocked) {
+        // If currently locked ('true'/'cD'), change to unlocked ('false'/'c_D')
+        clickedSpan.setAttribute("locked", "false");
+        clickedSpan.textContent = "c_D";
+      } else {
+        // If currently unlocked ('false'/'c_D'), change to locked ('true'/'cD')
+        clickedSpan.setAttribute("locked", "true");
+        clickedSpan.textContent = "cD";
+      }
+    }
+
+    /**
+     * Attaches a click event listener to a button element by its ID.
+     * When the button is clicked, it calls the executeFunction with the provided function name.
+     *
+     * @param {string} buttonId - The ID of the button element.
+     * @param {string} functionName - The name of the server-side function to execute.
+     */
+    function loadCommand(buttonId, functionName) {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.addEventListener("click", function () {
+          console.log(`DEBUG: Button with ID '${buttonId}' clicked. Executing function '${functionName}'.`);
+          executeFunction(functionName);
+        });
+      } else {
+        console.warn(`Button with ID '${buttonId}' not found. Cannot attach command listener.`);
+      }
+    }
+
+    // Attach click event listener to the update button
+    // When clicked, it will call executeFunction with the server-side function ID for updating programs
+    const updateButton = document.getElementById("update-button");
+    if (updateButton) {
+      updateButton.addEventListener("click", function () {
+        // TODO: Confirm the correct function ID for updating programs on the server
+        executeFunction("update_programs");
+      });
+    } else {
+      console.warn("Update button with ID 'update-button' not found.");
+    }
+
+    // Get all lock spans on the page
+    const lockSpans = document.querySelectorAll(".lock");
+
+    // Attach click listener to each lock span
+    lockSpans.forEach((span) => {
+      span.addEventListener("click", () => {
+        toggleLockState(span); // Call the function, passing the clicked span
+      });
+    });
+
+    const commandItems = document.querySelectorAll(".command-item");
+
+    // Loop through each command item
+    commandItems.forEach((item) => {
+      // Find the <a> tag within the current command-item
+      const anchorTag = item.querySelector("a.card-link");
+      
+      // Check if an <a> tag was found to avoid errors
+      if (anchorTag) {
+        // Attach the click event listener
+        anchorTag.addEventListener("click", (event) => {
+          event.preventDefault(); // Prevent the default link behavior
+          const commandId = item.getAttribute("data-command-id"); // Get the command ID from a data attribute
+          const clientId = item.getAttribute("data-command-client"); // Get the client ID from a data attribute
+          console.log(`DEBUG: Command with ID '${commandId}' clicked.`);
+          // Call the executeCommand function with the command ID
+          executeCommand(clientId, { id: commandId, args: [] });
+        });
+      }
+    });
+
+    // Assumes executeFunction, getCookie, and logToConsole are defined and accessible
+  }
+
+  function get_commands() {
+    // Get all commands from user
+    // Send a GET request to 'api/commands/list'
+    status, (commands = sendAjaxGetRequestJson("%url 'api_get_command_list'%"));
+    if (status !== 200) {
+      console.error("Failed to fetch commands. Status code:", status);
+      return;
+    }
+    console.log("DEBUG: Commands fetched successfully:", commands);
+
+    commands.forEach((command, index) => {
+      // Create a button for each command
+      const button = document.createElement("button");
+      button.id = `command-${command.id}`;
+      button.innerText = command.title;
+      button.addEventListener("click", function () {
+        console.log(`DEBUG: Command '${command.name}' clicked.`);
+        sendCommandExecutionRequest(command.id);
+      });
+      document.body.appendChild(button);
+    });
+  }
+
+  // Function to send the command execution request
+  function executeCommand(client_id, command) {
+    // Retrieve the necesary parameters using the API
+    // Call the executeCommand function with the provided parameters
+    const url = "{% url 'api_execute_command' %}";
+    const clientId = client_id;
+    const commandId = command.id;
+    const args = command.args;
+    // Construct the JSON payload to send to the Django server
+    const jsonData = {
+      client_id: clientId,
+      command_id: commandId,
+      args: args, // Include positional arguments
+    };
+    console.log(`DEBUG: Executing command '${commandId}' on client ID '${clientId}' with args: ${args}`);
+    // Call the function to execute the command
+    sendAjaxPostRequestJson(url, jsonData)
+      .then(([success, responseData]) => {
+        if (success) {
+          // Handle successful command execution
+          displayMessage("Command executed successfully: " + responseData.message, "success");
+          console.log("Command executed successfully:", responseData);
+          // Optionally, update the UI or show a success message
+        } else {
+          // Handle command execution failure
+          console.error("Command execution failed:", responseData.error);
+          // Optionally, show an error message to the user
+          displayMessage("Command execution failed:", responseData.error, "error");
+        }
+      })
+      .catch((error) => {
+        displayMessage("Error executing command: " + error.message, "error");
+        console.error("Error executing command:", error);
+        // Optionally, show an error message to the user
+      });
+    return;
+  }
 </script>
 <!-- prettier-ignore -->
 {% endblock %}

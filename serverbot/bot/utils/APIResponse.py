@@ -6,8 +6,7 @@ import psutil
 from django.http import JsonResponse
 
 import logging
-from flask import jsonify
-
+from flask import jsonify, request
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +21,13 @@ class APIResponse:
         self.code = code
 
     def to_dict(self) -> dict:
-        response = {"status": self.status, "message": self.message}
+
+        if isinstance(self, ErrorResponse):
+            response = {"status": self.status, "error": self.message}
+        else:
+            response = {"status": self.status, "message": self.message}
         if self.data is not None:
-            response = {"status": self.status, "message": self.message, "data": self.data}
+            response["data"] = self.data
         return response
 
     def to_response(self) -> JsonResponse:
@@ -91,7 +94,7 @@ class LogResponse(SuccessResponse):
 class ErrorResponse(APIResponse):
     """Base class for all error responses."""
 
-    def __init__(self, message: str, code: int= 500):
+    def __init__(self, message: str, code: int = 500):
         # Log error response with severity level
         logging.error(f"ErrorResponse: {message}")
         super().__init__("error", message, code)
@@ -149,8 +152,8 @@ class ForbiddenErrorResponse(ErrorResponse):
         # Log forbidden access error
         logging.warning(f"ForbiddenErrorResponse: {message}")
         # Standard HTTP status code for Forbidden is 403
-        super().__init__(message, data) # Pass message and data to base ErrorResponse
-        self.code = 403 # Set the specific HTTP status code
+        super().__init__(message, data)  # Pass message and data to base ErrorResponse
+        self.code = 403  # Set the specific HTTP status code
 
 
 class BadMethodErrorResponse(ErrorResponse):
@@ -169,20 +172,29 @@ def error_handler(f):
     Catches exceptions and returns appropriate error responses.
     """
 
-    @wraps(f)
     def wrapper(*args, **kwargs):
         try:
-            return f(*args, **kwargs)
+            # Consolidate all parameters: URL path, query, and JSON body (though JSON is less common for GET)
+            handler_args = kwargs.copy()  # Captures URL path parameters (e.g., from /items/<item_id>)
+            handler_args.update(request.args.to_dict())
+
+            # For GET requests, request.is_json and request.get_json() are usually empty or not used.
+            # But if a GET request unexpectedly sent a JSON body, this would capture it.
+            if request.is_json:
+                json_data = request.get_json()
+                if isinstance(json_data, dict):
+                    handler_args.update(json_data)
+
+            return f(handler_args)
         except Exception as e:
-            logging.error(f"Error in {f.__name__}: {str(e)}", exc_info=True)
-            return jsonify(
-                ErrorResponse(f"Internal server error: {str(e)}").to_dict()
-            ), 500
+            # Log the error for debugging
+            print(f"Error in handler wrapper: {e}")
+            return InternalErrorResponse(str(e)).to_response()
 
     return wrapper
 
 
-def check_None_API(value, error_message: str=None) -> tuple[JsonResponse, int] | tuple[None, int]:
+def check_None_API(value, error_message: str = None) -> tuple[JsonResponse, int] | tuple[None, int]:
     """
     Check if the given value is None or empty.
 
@@ -197,7 +209,7 @@ def check_None_API(value, error_message: str=None) -> tuple[JsonResponse, int] |
     return None, 200
 
 
-def check_instance_API(obj, instance, error_message: str=None) -> tuple[JsonResponse, int] | tuple[None, int]:
+def check_instance_API(obj, instance, error_message: str = None) -> tuple[JsonResponse, int] | tuple[None, int]:
     """
 
     Returns:

@@ -1,19 +1,19 @@
 {% load static %}
+<h3>
+  <button type="button" class="button" id="update-button" onclick="refresh_commands_list()" alt="Refresh">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
+      <path
+        d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
+        stroke="white"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </button>
+  <small>(last update: {{now_date|default:"None"}})</small>
+</h3>
 <div class="programs-grid-container">
-  <h3>
-    <button type="button" class="button" id="update-button" onclick="" alt="Refresh">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" style="background-color: inherit; border-radius: 4px">
-        <path
-          d="M4.06189 13C4.02104 12.6724 4 12.3387 4 12C4 7.58172 7.58172 4 12 4C14.5006 4 16.7332 5.14727 18.2002 6.94416M19.9381 11C19.979 11.3276 20 11.6613 20 12C20 16.4183 16.4183 20 12 20C9.61061 20 7.46589 18.9525 6 17.2916M9 17H6V17.2916M18.2002 4V6.94416M18.2002 6.94416V6.99993L15.2002 7M6 20V17.2916"
-          stroke="white"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </button>
-    <small>(last update: {{now_date|default:"None"}})</small>
-  </h3>
   {% for program in programs %}
   <div class="program-item">
     <a href="#" class="card-link" onclick="fetchProgramDetails({{ program.id }}); return false;">
@@ -47,7 +47,7 @@
   });
 
   function fetchProgramDetails(programId) {
-    const url = `/api/programs/${programId}/details/`; // Adjust the URL as needed
+    const url = {% url 'api_get_command_list' %}; // Adjust the URL as needed
     fetch(url)
       .then((response) => {
         if (!response.ok) {
@@ -68,11 +68,10 @@
   // This function still uses fetch as per your original code.
   // If you prefer to use sendAjaxPostRequest for this, it would need adaptation
   // as sendAjaxPostRequest is designed for JSON responses with a 'status' or 'success' field.
-  function getProgramsStatus() {
-    fetch(`{% url 'api_refresh_processes_status' %}`, {
-      method: "POST",
+  function refresh_commands_list() {
+    fetch(`{% url 'api_update_command_list' %}`, {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         "X-CSRFToken": getCookie("csrftoken"), // Assumes getCookie is accessible
       },
     })
@@ -212,6 +211,13 @@
     text-decoration: none; /* Remove underline */
     color: inherit; /* Inherit color from parent */
     display: block; /* Make the link a block element */
+  }
+
+  .program-item a:hover {
+    text-decoration: none; /* Remove underline */
+    color: inherit; /* Inherit color from parent */
+    display: block; /* Make the link a block element */
+    cursor: pointer; /* Change cursor to pointer on hover */
   }
 
   /* Style for the date and time spans within meta */

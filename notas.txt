@@ -1,50 +1,45 @@
-SERVIDOR
+i need a configuration page for the user. you'll do a html template for the configuration page. you must keep in mind what the configuration can change and create the according html fields for each user configuration data.
+The configuration page is specific for each user. The user can change and send one or more field at the same time, but all will be sent to the API endpoint. In there you can change:
 
-Comandos
+# User properties
 
- O API. Recibir comando desde la web (id_comando, id_cliente, parametros). Revisar parametros. Enviar peticion de comando al cliente.
- O API. Actualizar lista de comandos (id_cliente). Enviar peticion GET de lista de comandos al cliente. Recibir, transformar y enviar de vuelta a la web. Actualizar lista de comandos en la base de datos.
+'user_id': int,
 
-Programas
- O API. Recibir programa desde la web (id_programa, id_cliente). Revisar parametros. Enviar peticion de programa al cliente.
- O API. Sincronizar lista de programas (id_cliente). Enviar peticion GET de lista de programas al cliente. Recibir, crear o cambiar el existente y enviar de vuelta a la web.
- O API. Actualizar lista de programas parcialmente. Esta funcion no crea ningun progrma nuevos, sirve para actualizar estados de programas existentes.
+'username': str,
 
-Actividades (unicamente para el servidor)
- O API. Crear actividad. (id_usuario, parametros)
- O API. Actualizar/modificar actividad. (id_actividad, id_usuario, parametros)
- O API. Eliminar actividad. (id_actividad, id_usuario)
- O API. Obtener actividad. (id_actividad)
- O API. Obtener lista de actividades.
+'first_name': str,
 
-Mensajes (unicamente para el servidor)
- O API. Crear mensaje. (id_usuario, parametros)
- O API. Actualizar/modificar mensaje. (id_mensaje, id_usuario, parametros)
- O API. Eliminar mensaje. (id_mensaje, id_usuario)
- O API. Obtener mensaje. (id_mensaje)
- O API. Obtener lista de mensajes.
+'last_name': str,
 
-Configuracion (UserSettings)
- O API. Crear configuracion. (id_usuario, vacio) (Se crea cuando se crea el usuario)
- - API. Actualizar/modificar configuracion. (id_configuracion, id_usuario, parametros a modificar)
- - La configuracion solo se elimina en cascada si se elimina el usuario.
-    { (BD de configuracion)
-        id_configuracion,
-        id_usuario,
-        fecha_creacion,
-        fecha_modificacion,
-        API_keys (json),
-        configuracion (json)
-    }
+'email': str, // With email format validation
 
+'is_active': bool, // Whether the user account is active
 
-CLIENTE
+'is_staff': bool, // Whether the user can access the admin site
 
-Comandos
- - API. Ejecutar comando. Recibir comando desde el servidor (id_comando, parametros). Revisar parametros. Ejecutar comando. Responder al servidor con el resultado.
- - API. Actualizar lista de comandos. Recibir peticion GET de actualizar lista de comandos desde el servidor. Descubir comandos y devolver una lista al servidor.
+'is_superuser': bool, // Whether the user has all permissions without explicitly assigning them
 
-Programas
- - API. Iniciar programa. Recibir programa desde el servidor (id_programa). Iniciar programa. Responder al servidor con el resultado.
- - API. Detener programa. Recibir programa desde el servidor (id_programa). Detener programa. Responder al servidor con el resultado. (algunos programas no se pueden detener)
- - API. Actualizar lista de programas. Recibir peticion GET de actualizar lista de programas desde el servidor. Descubir programas y devolver una lista al servidor.
+'groups': list, // List of groups the user belongs to
+
+'user_permissions': list // List of permissions assigned to the user
+
+// Change password form (atomic operation)
+{
+'old_password': str, // This should be a secure field.
+
+'new_password': str, // This should be a secure field.
+
+'confirm_password': str, // This should be a secure field. Must match 'new_password'
+}
+
+# Clients (all field required in a atomic operation for a successfull creation)
+This operation creates a new client o if the local_ip is already assigned to another client, it will add the user to the allowed list
+The user can add a new client assigned to him by writing the client info in a form:
+{
+'name': str
+
+'local_ip': str
+
+'API_key': str // This should be a secure field.
+}
+

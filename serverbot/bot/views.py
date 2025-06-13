@@ -35,6 +35,29 @@ def homePage(request):
     # Obtener la lista de archivos HTML en el directorio
     components = [f for f in os.listdir(components_dir) if f.endswith('.html')]
 
+    context = {'dynamic_components': components, 'user': user}
+    if not request.user.is_authenticated:
+        # If the user is not authenticated, redirect to the login page
+        # Get all Command objects from the database
+        commands, code = commands_utils.get_command_list_by_user(request.user.id)
+        if code >= 300:
+            # Handle the error case, e.g., redirect to an error page or show a message
+            return error_page_view(request, f"Commands not found. Error: {commands}")
+        # Convert the commands to a list of dictionaries
+        commands_list: list[Command] = [command.to_dict() for command in commands]
+        # Render the template with the commands in the context
+        context.update({'commands': commands_list})
+
+        # Get all Program objects from the database
+        programs, code = programs_utils.get_program_list_by_user(request.user.id)
+        if code != 200:
+            # Handle the error case, e.g., redirect to an error page or show a message
+            return error_page_view(request, f"Programs not found. Error: {programs}")
+        # Convert the programs to a list of dictionaries
+        programs_list = [program.to_dict() for program in programs]
+        # Render the template with the programs in the context
+        context.update({'programs': programs_list})
+
     # If it's the first time the server is loaded, we need to do some initialization
     # if config.SERVER_INITIALIZATION:
     #     status, message = config.configuration.initialize_server()
@@ -46,7 +69,6 @@ def homePage(request):
     #         context = {'error': message}
     #         return error_page_view(request, context['error'])
     # If the server was initialized successfully, we can render the home page
-    context = {'dynamic_components': components, 'user': user}
     return render(request, 'bot/home.html', context)
 
 
@@ -151,6 +173,10 @@ def component_programs_view(request):
     """
     Retrieves all Program objects from the database and renders the 'component_program.html' template with the programs in the context.
     """
+    if not request.user.is_authenticated:
+        # If the user is not authenticated, redirect to the login page
+        return redirect('login')
+
     # Get all Program objects from the database
     programs, code = programs_utils.get_program_list_by_user(request.user.id)
     if code != 200:
@@ -163,14 +189,25 @@ def component_programs_view(request):
     return render(request, 'bot/component_program.html', context=context)
 
 
+# ---- Commands ----
 def component_commands_view(request):
     """
     Retrieves all Command objects from the database and renders the
     component_command.html template with the commands in the context.
     """
+    # Check if the user is authenticated
+    if not request.user.is_authenticated:
+        # If the user is not authenticated, redirect to the login page
+        return redirect('login')
+    # Sync commands from the user
+    # response, code = commands_utils.sync_commands_list(request.user)
+    # if code > 200:
+    #     # Handle the error case, e.g., redirect to an error page or show a message
+    #     return error_page_view(request, f"Error {code} syncing commands: {response}")
+
     # Get all Command objects from the database
     commands, code = commands_utils.get_command_list_by_user(request.user.id)
-    if code != 200:
+    if code >= 300:
         # Handle the error case, e.g., redirect to an error page or show a message
         return error_page_view(request, f"Commands not found. Error: {commands}")
     # Convert the commands to a list of dictionaries
@@ -186,3 +223,39 @@ def about_view(request):
 
 def register_view(request):
     return render(request, 'bot/register.html', context={})
+
+
+# User management views
+def user_configuration_view(request, pk=None):
+    """
+    Renders the user configuration page.
+    """
+    # Check if the user is authenticated
+    if not request.user.is_authenticated:
+        # If the user is not authenticated, redirect to the login page
+        return redirect('login')
+
+    # Get the current user
+    user = request.user
+    # If a user ID is provided, get the user by ID
+    if not isinstance(pk, int):
+        pk = int(pk)
+
+    if pk is not None:
+        user, code = user_utils.get_user_by_id(pk)
+        if code != 200:
+            # Handle the error case, e.g., redirect to an error page or show a message
+            return error_page_view(request, f"User not found. Error: {user}")
+    if user.id != request.user.id:
+        # If the user ID does not match the current user, return an error
+        return error_page_view(request, "You do not have permission to access this page.")
+
+    # If the user is authenticated and the user ID matches, render the user configuration template
+    # Convert the user to a dictionary
+    user_dict = user_to_dict(user)
+    context = {'user_data': user_dict}
+    return render(request, 'bot/user_configuration.html', context=context)
+
+
+def user_page():
+    return None

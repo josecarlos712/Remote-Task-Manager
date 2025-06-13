@@ -3,30 +3,9 @@ import logging
 
 from django.contrib.auth.models import User
 
+from ..models import UserSettings
+
 logger = logging.getLogger(__name__)
-
-
-# Utility function to get a user by their ID
-def get_user_by_id(user_id: int) -> tuple[str, int] | tuple[User, int]:
-    """
-    Get a user by their ID.
-
-    Args:
-        user_id (int): The ID of the user to retrieve.
-
-    Returns:
-        tuple: A tuple containing either the User object and status code (200) or an error message and status code (400).
-    """
-    # Check if the user_id is valid
-    if not isinstance(user_id, int):
-        return "Invalid user ID", 400
-
-    # Check if User object already exists
-    existing_user = User.objects.filter(pk=user_id).first()
-    if not existing_user:
-        return f"User with id {user_id} does not exist", 400
-
-    return existing_user, 200  # OK
 
 
 # Utility function to delete a user
@@ -97,8 +76,6 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
         "last_name": str,
         "password": str,
         "is_active": bool,
-        "is_staff": bool,
-        "is_superuser": bool,
         "groups": list,
         "user_permissions": list,
     }
@@ -114,15 +91,25 @@ def update_user(user_id: int, parameters: dict) -> tuple[str, int] | tuple[User,
     # Check if update is necessary
     update_necessary = False
     for key, value in parameters.items():
-        if key == "user_id":
+        if key in ["user_id", "password"]:
             continue
         if getattr(existing_user, key) != value:
             update_necessary = True
             break
 
+    # Change password if provided
+    if "password" in parameters and parameters["password"]:
+        print(f"Updating password for user {existing_user.username} to {parameters['password']}")
+        existing_user.set_password(parameters["password"])
+        update_necessary = True
+
     # Update the user
+    if not update_necessary:
+        return existing_user, 200  # OK
     try:
         for key, value in parameters.items():
+            if key in ["user_id", "password"]:
+                continue
             setattr(existing_user, key, value)
         existing_user.save()
         return existing_user, 200  # OK
@@ -145,3 +132,14 @@ def get_users() -> tuple[list[User] | str, int]:
     except Exception as e:
         logger.error(f"Error retrieving users: {e}")
         return "There was an internal error retrieving the users", 500  # Internal Server Error
+
+
+def get_user_settings(user: User) -> UserSettings:
+    """
+    Get the user settings for the currently logged-in user.
+
+    Returns:
+        UserSettings: The settings of the currently logged-in user.
+    """
+    # Retrieve and return the user settings
+    return UserSettings.objects.get(user=user)

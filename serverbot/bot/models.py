@@ -9,8 +9,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings  # Import settings to reference the AUTH_USER_MODEL
 from django.utils import timezone
 
-from .utils import user_utils
-
 # Loads the logger
 logger = logging.getLogger(__name__)
 
@@ -32,6 +30,36 @@ def user_to_dict(user: ForeignKey[User]|User) -> dict:
         'groups': [group.name for group in user.groups.all()],  # List of group names
         'user_permissions': [perm.codename for perm in user.user_permissions.all()],  # List of permission codenames
     }
+
+
+# Utility function to get a user by their ID
+def get_user_by_id(user_id: int) -> tuple[str | User, int]:
+    """
+    Get a user by their ID.
+
+    Args:
+        user_id (int): The ID of the user to retrieve.
+
+    Returns:
+        tuple: A tuple containing either the User object and status code (200) or an error message and status code (400).
+    """
+    # Check if the user_id is valid
+    if not isinstance(user_id, int):
+        return "Invalid user ID", 400
+
+    # Check if User object already exists
+    try:
+        existing_user = User.objects.get(pk=user_id)
+    except ObjectDoesNotExist:
+        return f"User with id {user_id} does not exist", 400
+    except MultipleObjectsReturned:
+        logger.error(f"Multiple users found with id {user_id}. This should not happen.")
+        return "Multiple users found with this ID, please check the database integrity.", 500
+    except Exception as e:
+        logger.error(f"Error retrieving user with id {user_id}: {e}")
+        return "There was an internal error retrieving the user", 500
+
+    return existing_user, 200  # OK
 
 
 def time_ago(date):
@@ -137,11 +165,14 @@ class UserSettings(models.Model):
         return f"Settings for {self.user.username}"
 
     # You might want methods to easily manage the keys via the settings object
-    def get_client_api_key(self, client_ip):
+    def get_client_api_key(self, client_ip) -> tuple[str, int]:
         """Retrieves the API key for a specific client IP from the settings."""
         # Ensure client_api_keys is treated as a dictionary, even if null in DB
         keys_dict = self.client_api_keys if self.client_api_keys is not None else {}
-        return keys_dict.get(client_ip)
+        if keys_dict is None:
+            logger.warning(f"No API keys found for client {client_ip}")
+            return f"No API keys found for client IP: {client_ip}", 404
+        return keys_dict.get(client_ip), 200
 
     def set_client_api_key(self, client_ip, api_key):
         """Sets or updates the API key for a specific client IP in the settings."""
@@ -246,35 +277,43 @@ class Client(models.Model):
         """
         Returns a string representation of the Client object.
         """
-        return f"Client {self.main_user.username} at {self.local_ip}:{self.port}"
+        return f"{self.main_user.username} at {self.local_ip}:{self.port}"
 
     class Meta:
         # '-updated' for inverse ordering, and 'updated' for normal ordering
         ordering = ['local_ip', 'main_user']
 
-    def is_user_allowed(self, user_id) -> bool:
+    def is_user_allowed(self, user) -> tuple[str, int]:
         """
         Checks if a given user is in the list of allowed users for this client.
 
         Args:
-            user_id (int): The user to check against the allowed users for this client.
+            user (int): The user to check against the allowed users for this client.
 
         Returns:
-            tuple (String/Client, int): Returns a tuple containing the client object or a error message and a boolean indicating success.
+            tuple (str, int): Returns a tuple containing the client object or a error message and a boolean indicating success.
         """
+        if isinstance(user, User):
+            user_id = user.pk  # Get the primary key of the User object
+        elif isinstance(user, int):
+            user_id = user  # Assume user is an ID
+        else:
+            logger.error(f"Invalid user type: {type(user)}. Expected User object or user ID.")
+            return "Invalid user type. Expected User object or user ID.", 400
+
         # Client owner is always allowed
         print(f"Client owner: {self.main_user.pk}")
         if self.main_user.pk == user_id:
             logger.debug(f"User {user_id} is the main user for client {self}.")
-            return True
+            return "User is the main user for this client.", 200
 
         allowed = self.allowed_users.filter(pk=user_id).exists()
         if allowed:
-            logger.debug(f"User {user_id} is allowed for client {self}.")
-            return True
+            logger.debug(f"User {user} is allowed for client {self}.")
+            return "User is allowed for this client.", 200
         else:
-            logger.debug(f"User {user_id} is NOT allowed for client {self}.")
-            return False
+            logger.debug(f"User {user} is NOT allowed for client {self}.")
+            return "User is NOT allowed for this client.", 403  # Forbidden
 
 
 class Activity(models.Model):
@@ -357,7 +396,7 @@ class Message(models.Model):  # One message can have only one activity and user
 
         like_users = []
         for user_id in self.likes:
-            user, code = user_utils.get_user_by_id(user_id)  # Get user object by ID
+            user, code = get_user_by_id(user_id)  # Get user object by ID
             if code == 200:
                 like_users.append(user.username)
 
@@ -586,6 +625,7 @@ class Command(models.Model):
     )
 
     name = models.TextField(null=False, blank=False)
+    title = models.TextField(null=False, blank=False, default="Untitled command")
     description = models.TextField(null=False, blank=True, default="")
 
     # JSONField is suitable for storing the list of expected argument types.
@@ -613,13 +653,15 @@ class Command(models.Model):
         Serializes the Command object into a dictionary.
         """
         # Get client ID and string representation, handling null
+        self.client: Client
         client_id = self.client.pk if self.client else None
         client_str = str(self.client) if self.client else None
 
         return {
             'id': self.pk,  # Primary key
-            'command_id': self.command_id,
+            'command_id': self.pk,
             'name': self.name,
+            'title': self.title,
             'description': self.description,
             'client_id': client_id,  # Include client ID
             'client_info': client_str,  # Include client string representation (optional)

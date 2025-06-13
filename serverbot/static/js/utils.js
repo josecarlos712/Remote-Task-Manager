@@ -135,7 +135,7 @@ function sendAjaxPostRequestJson(api_url, content) {
       console.warn(`CSRF token not found for ${url}. Request might fail.`);
       // For most POST requests in Django, CSRF token is required.
       // Rejecting is appropriate if the token is essential.
-      reject("CSRF token not found.");
+      reject({ status: "error", message: "CSRF token not found for POST request. Please ensure you are logged in or the token is set.", code: 403 });
       return; // Stop the function if token is missing
     }
 
@@ -151,14 +151,12 @@ function sendAjaxPostRequestJson(api_url, content) {
         console.log(`DEBUG: Sending JSON body for ${url}: ${requestBody}`);
       } catch (e) {
         console.error(`Error stringifying JSON content for ${url}:`, e);
-        reject(`Error preparing JSON content: ${e.message}`);
+        reject({ status: "error", message: "Failed to stringify JSON content for POST request. Please check the content structure.", code: 400 });
         return; // Stop the function if JSON stringification fails
       }
     } else if (content === null) {
       console.log(`DEBUG: Sending POST request to ${url} with no body.`);
       // No body needed, no Content-Type header for JSON is necessary.
-      // If your server requires a specific Content-Type for empty POST, set it here.
-      // xhr.setRequestHeader("Content-Type", "text/plain"); // Example for empty body
     } else {
       console.warn(`DEBUG: Invalid content type provided for ${url}. Expected object or null, but got ${typeof content}. Sending without body.`);
       // Handle cases where content is provided but not an object/null
@@ -180,9 +178,6 @@ function sendAjaxPostRequestJson(api_url, content) {
         } catch (e) {
           console.warn(`Could not parse JSON response for ${url}:`, e);
           // If JSON parsing fails, return the raw text response
-          // Depending on your API, receiving non-JSON on 2xx might be an error.
-          // Decide if you should resolve with raw text or reject here.
-          // Resolving with raw text allows the caller to handle non-JSON success.
         }
         resolve([true, responseData]); // Resolve with success status and the parsed/raw response data
       } else {
@@ -254,7 +249,7 @@ function timeAgo(date) {
   const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
 
   const timeAgoParts = [];
-  console.log("Time difference:", now, " - ", new Date(date), " = ", timeDifference, "ms");
+  //console.log("Time difference:", now, " - ", new Date(date), " = ", timeDifference, "ms");
 
   if (days > 0) {
     timeAgoParts.push(`${days} ${days === 1 ? "día" : "días"}`);
@@ -281,6 +276,27 @@ function timeAgo(date) {
 }
 
 /**
+ * Displays a message in a message box on the page.
+ * This function is used to show success or error messages to the user.
+ * @param {string} message - The message to display.
+ * @param {string} type - The type of message ('success', 'error', etc.).
+ * This function needs a message box element with the ID "message-display" in the HTML.
+ */
+function displayMessage(container, message, type) {
+  // If the container is not provided, use the default message box
+  if (!container) {
+    const messageBox = document.getElementById("message-display");
+  } else if (typeof container === "string") {
+    const messageBox = document.getElementById(container);
+  }
+  const messageBox = document.getElementById("message-display");
+  messageBox.style.display = "block";
+  messageBox.className = `message-box ${type}`;
+  messageBox.textContent = message;
+}
+
+
+/**
  * Displays validation error messages received from the server in the browser console.
  * This function is used for debugging purposes during development.
  *
@@ -289,8 +305,6 @@ function timeAgo(date) {
  * Can be null or undefined if no specific errors are provided.
  */
 function displayErrors(errors) {
-  console.log("Received validation errors from server:");
-
   if (errors) {
     // Iterate through the errors dictionary
     for (const fieldName in errors) {
@@ -312,4 +326,34 @@ function displayErrors(errors) {
   } else {
     console.log("  No specific error details provided.");
   }
+}
+
+function objectToString(obj) {
+  return JSON.stringify(obj, null, 2); // The 'null, 2' arguments are for pretty-printing
+}
+
+
+function askForConfirmationWrapper(func, message="¿Estás seguro de que quieres continuar?", ...args) {
+  return new Promise((resolve, reject) => {
+    // This is a browser-specific function; for Node.js, you'd use a different way to get user input.
+    const confirmation = confirm(message);
+
+    if (confirmation) {
+      try {
+        // Execute the original function with its arguments
+        // We use Promise.resolve() to ensure the result is always a Promise,
+        // even if func returns a non-Promise value.
+        // This makes the chain more consistent.
+        Promise.resolve(func(...args))
+          .then(result => resolve(result)) // If func resolves, resolve the wrapper's Promise
+          .catch(error => reject(error)); // If func rejects, reject the wrapper's Promise
+      } catch (error) {
+        // Catch synchronous errors thrown by func itself
+        reject(error);
+      }
+    } else {
+      // If action is cancelled, reject the Promise
+      reject(new Error("Action cancelled by user."));
+    }
+  });
 }

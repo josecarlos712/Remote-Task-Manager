@@ -6,8 +6,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from .utils import check_None, check_instance
-from ..models import Activity, Message
-from .user_utils import get_user_by_id
+from ..models import Activity, Message, get_user_by_id
 from .activity_utils import get_activity_by_id
 
 # Get the User model

@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-{% load static %} {% csrf_token %}
+{% load static %}
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Server Bot{% endblock %}</title>
-    <link rel="shortcut icon" href="{% block icon %}{% static 'images/icons/favicon.ico' %}{% endblock %}" type="image/x-icon" />
-    <link rel="stylesheet" href="{% static 'styles/main.css' %}" />
-    <script src="{% static 'js/common.js' %}"></script>
+    <link rel="shortcut icon" href="{% static 'images/icons/favicon.ico' %}" type="image/x-icon"></script>
+    <link rel="stylesheet" href="{% static 'styles/main.css' %}"></script>
     <script src="{% static 'js/utils.js' %}"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
@@ -47,7 +46,6 @@
         <!-- Main content goes here -->
         {% endblock %}
       </div>
-      <div class="rightContainer">Right</div>
       <div class="footerContainer">{% include 'footer.html' %}</div>
     </div>
   </body>
