@@ -2,13 +2,14 @@
 
 This project corresponds to the **server** component of a client-server system developed as a Bachelor's Thesis (TFG). It allows managing and controlling multiple clients on a local network through a web interface, remote commands, and real-time notifications.
 
+You can find the client-side application on https://github.com/josecarlos712/Remote-Task-Manager-Client
+
 ## 🧩 Key Features
 
 - Responsive web interface (HTML, CSS, JS with AJAX).
 - Python backend using Flask.
 - Dynamic and modular endpoint loading via recursive structure.
 - User authentication system.
-- WebSockets for real-time updates.
 - Structured API with unified error handling (`APIResponse`).
 - Communication with a Telegram bot for remote control.
 
@@ -44,14 +45,11 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Access the web interface at `http://localhost:5000`.
+Access the API interface at `http://localhost:5000`.
 
 ## ⚙️ Main Dependencies
 
 * Flask
-* Flask-SocketIO
-* Werkzeug
-* PyJWT (if using JWT authentication)
 * Requests
 
 ## 🔐 Security
@@ -63,11 +61,12 @@ Access the web interface at `http://localhost:5000`.
 ## 📌 Development Status
 
 ✅ Modular endpoint system
-✅ WebSocket communication
 ✅ Basic authentication
+❌ WebSocket communication
 ❌ API input validation and automated testing
 ❌ HTTPS support
 ❌ Advanced user management
+❌ API Keys for serveless usage
 
 ## 📄 License
 
