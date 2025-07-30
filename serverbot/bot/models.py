@@ -200,19 +200,19 @@ class Client(models.Model):
     # and setting null=True makes the field nullable in the database.
     main_user: ForeignKey[User] = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,  # Set the main_user field to NULL when the User is deleted
-        related_name='main_clients',  # Provides a reverse relation name on the User model
-        null=True,  # Allow the field to be null in the database
-        blank=True,  # Allow the field to be blank in forms
+        on_delete=models.SET_NULL,
+        related_name='main_clients',
+        null=True,
+        blank=True,
         help_text="The primary user associated with this client."
     )
 
     # Added a field for the client's name (e.g., computer name)
     # This will need to be populated by the client application sending its name to the server.
     name = models.CharField(
-        max_length=255,  # Choose an appropriate max length for computer names
-        null=True,  # Allow the field to be null
-        blank=True,  # Allow the field to be blank in forms
+        max_length=255,
+        null=True,
+        blank=True,
         help_text="The name of the client machine (e.g., computer name)."
     )
 
@@ -220,14 +220,14 @@ class Client(models.Model):
     # We use settings.AUTH_USER_MODEL to reference the user model defined in settings.py
     allowed_users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        related_name='allowed_clients',  # Optional: provides a reverse relation name on the User model
+        related_name='allowed_clients',
         help_text="Users who are allowed to access this client."
     )
 
     # A field for the unique local IP address of the client.
     # unique=True ensures that no two clients have the same IP.
     local_ip = models.GenericIPAddressField(
-        protocol='IPv4',  # Or 'both' if you support IPv6
+        protocol='IPv4',
         unique=True,
         null=False,
         blank=False,
@@ -302,7 +302,6 @@ class Client(models.Model):
             return "Invalid user type. Expected User object or user ID.", 400
 
         # Client owner is always allowed
-        print(f"Client owner: {self.main_user.pk}")
         if self.main_user.pk == user_id:
             logger.debug(f"User {user_id} is the main user for client {self}.")
             return "User is the main user for this client.", 200

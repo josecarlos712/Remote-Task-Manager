@@ -35,8 +35,8 @@ def homePage(request):
     # Obtener la lista de archivos HTML en el directorio
     components = [f for f in os.listdir(components_dir) if f.endswith('.html')]
 
-    context = {'dynamic_components': components, 'user': user}
-    if not request.user.is_authenticated:
+    context = {'dynamic_components': components}
+    if user:
         # If the user is not authenticated, redirect to the login page
         # Get all Command objects from the database
         commands, code = commands_utils.get_command_list_by_user(request.user.id)
@@ -57,6 +57,7 @@ def homePage(request):
         programs_list = [program.to_dict() for program in programs]
         # Render the template with the programs in the context
         context.update({'programs': programs_list})
+        context.update({'user': user})
 
     # If it's the first time the server is loaded, we need to do some initialization
     # if config.SERVER_INITIALIZATION:
@@ -175,7 +176,7 @@ def component_programs_view(request):
     """
     if not request.user.is_authenticated:
         # If the user is not authenticated, redirect to the login page
-        return redirect('login')
+        return render(request, 'bot/error.html', context={'error': 'You must be logged in to view programs.'})
 
     # Get all Program objects from the database
     programs, code = programs_utils.get_program_list_by_user(request.user.id)
@@ -198,7 +199,7 @@ def component_commands_view(request):
     # Check if the user is authenticated
     if not request.user.is_authenticated:
         # If the user is not authenticated, redirect to the login page
-        return redirect('login')
+        return render(request, 'bot/error.html', context={'error': 'You must be logged in to view commands.'})
     # Sync commands from the user
     # response, code = commands_utils.sync_commands_list(request.user)
     # if code > 200:
@@ -242,7 +243,7 @@ def user_configuration_view(request, pk=None):
         pk = int(pk)
 
     if pk is not None:
-        user, code = user_utils.get_user_by_id(pk)
+        user, code = get_user_by_id(pk)
         if code != 200:
             # Handle the error case, e.g., redirect to an error page or show a message
             return error_page_view(request, f"User not found. Error: {user}")

@@ -27,24 +27,18 @@
         grid-area: footer;
       }
     </style>
-    {% block header_style %}
-    <!-- This block is for specific scripts needed by child templates -->
-    {% endblock %}
-    {% block extra_head %}
-    <!-- Child templates can insert additional head content here -->
-    {% endblock %} {% block scripts %}
-    <!-- This block is for specific scripts needed by child templates -->
-    {% endblock %}
   </head>
   <body>
     <div class="grid-container">
       <div class="headerContainer">{% include 'header.html' %} {% include 'navbar.html' %}</div>
       <div class="leftContainer">Menu</div>
       <div class="mainContainer">
+        <main>
         <a id="top"></a>
         {% block baseblock %}
         <!-- Main content goes here -->
         {% endblock %}
+        </main>
       </div>
       <div class="footerContainer">{% include 'footer.html' %}</div>
     </div>

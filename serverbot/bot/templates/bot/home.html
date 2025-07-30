@@ -4,20 +4,18 @@
 {% block baseblock %}
 <!-- prettier-ignore-attribute -->
 <div id="component_activity"></div>
-{% if user %}
 <a id="programs"></a>
 <div id="component_program"></div>
 <a id="commands"></a>
 <div id="component_command"></div>
-{% endif %}
 <!-- Home Script -->
 <script>
   // This function runs once the document (web page) is fully loaded
   document.addEventListener("DOMContentLoaded", function () {
     // Automatically load the component when the page is loaded
+    loadActivityComponent();
     loadProgramComponent();
     loadCommandComponent();
-    loadActivityComponent();
 
     function loadActivityComponent() {
       const activityContainer = document.getElementById("component_activity");
@@ -218,7 +216,7 @@
       .then(([success, responseData]) => {
         if (success) {
           // Handle successful command execution
-          displayMessage("Command executed successfully: " + responseData.message, "success");
+          //displayMessage("Command executed successfully: " + responseData.message, "success");
           console.log("Command executed successfully:", responseData);
           // Optionally, update the UI or show a success message
         } else {

@@ -28,8 +28,8 @@ from .utils.APIResponse import (
 )
 from .models import Command, Client, UserSettings, user_to_dict
 
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST, require_GET
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_POST, require_GET, require_http_methods
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 
 from .utils.utils import check_None
@@ -222,8 +222,10 @@ def api_get_command_list(request):
         logger.error(f"api_get_command_list() - Failed to retrieve command list for user {user}.")
         return NotFoundResponse(commands).to_response()
     logger.debug(f"api_get_command_list() - Successfully retrieved command list for user {user}.")
+    # Convert the QuerySet of Command objects into a list of dictionaries using to_dict()
+    command_list_data = [command.to_dict() for command in commands]
     # Return the command list as a JSON response
-    return SuccessResponse("Successfully retrieved command list for user {client_id}.", commands)  # 200 OK
+    return SuccessResponse(f"Successfully retrieved command list for user {user.id}.", command_list_data).to_response()  # 200 OK
 
 
 # ---- Program API ----
@@ -338,7 +340,6 @@ def refresh_processes_status(request):
 
 
 # ---- User Registration and Authentication API ----
-@csrf_protect
 @require_POST
 def api_register(request):
     """
@@ -465,7 +466,7 @@ def api_logout(request):
 
 
 @csrf_protect
-@require_POST
+@require_http_methods(["POST", "OPTIONS"])
 def api_login(request):
     """
     Handles user login via API.
@@ -476,6 +477,14 @@ def api_login(request):
     # If the request is None, the function returns if the function is 'GET' or 'POST'
     if not request:
         return _method
+
+    if request.method == 'OPTIONS':
+        # Respond to the preflight with appropriate CORS headers
+        response = HttpResponse()
+        response["Access-Control-Allow-Origin"] = "*"  # Change to specific domain in production
+        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
 
     if request.method == 'POST':
         try:
@@ -1165,7 +1174,7 @@ def api_like_message(request):
         # Convert the likes list into a list of users names
         like_users = []
         for user_id in likes:
-            user, code = user_utils.get_user_by_id(user_id)  # Get user object by ID
+            user, code = get_user_by_id(user_id)  # Get user object by ID
             if code == 200:
                 like_users.append(user.username)
                 message_obj.likes.append(user_id)  # Add user to the liked_by field of the message

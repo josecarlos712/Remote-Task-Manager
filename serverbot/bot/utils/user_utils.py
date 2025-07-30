@@ -3,7 +3,7 @@ import logging
 
 from django.contrib.auth.models import User
 
-from ..models import UserSettings
+from ..models import UserSettings, get_user_by_id
 
 logger = logging.getLogger(__name__)
 

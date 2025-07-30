@@ -1,0 +1,158 @@
+{% extends "main.html" %} {% load static %} {% block title %}Create Activity{% endblock %} {% block baseblock %}
+<div class="form-container">
+  <h1>Create New Activity</h1>
+  <div id="message-display" class="message-box" style="display: none"></div>
+
+  <form id="create-activity-form-element">
+    {% csrf_token %} {# Django's CSRF token for security #}
+
+    <div class="form-group">
+      <label for="activity_title">Activity Title:</label>
+      <input type="text" id="activity_title" name="activity_title" required />
+    </div>
+
+    <div class="form-group">
+      <label for="activity_description">Activity Description:</label>
+      <textarea id="activity_description" name="activity_description" required></textarea>
+    </div>
+
+    <button type="submit" class="form-submit-button">Create Activity</button>
+  </form>
+</div>
+<style>
+  /* Basic styling for the form container */
+  .form-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: var(--color-background);
+    border: 1px solid var(--color-foregroud);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: var(--color-text);
+  }
+
+  .form-group input[type="text"],
+  .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    font-size: 1em;
+    color: var(--color-text-body);
+    background-color: var(--color-background-light);
+  }
+
+  .form-group textarea {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 120px;
+  }
+
+  .form-submit-button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    background-color: var(--color-button); /* A standard blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .form-submit-button:hover {
+    background-color: var(--color-button-hover);
+    cursor: pointer;
+  }
+
+  /* Styles for messages (success/error) */
+  .message-box {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .message-box.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .message-box.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+</style>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("create-activity-form-element");
+    const messageDisplay = document.getElementById("message-display");
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault(); // Prevent default form submission
+
+      // Clear previous messages
+      messageDisplay.style.display = "none";
+      messageDisplay.className = "message-box";
+      messageDisplay.textContent = "";
+
+      const activityTitle = document.getElementById("activity_title").value;
+      const activityDescription = document.getElementById("activity_description").value;
+
+      // Basic client-side validation
+      if (!activityTitle.trim() || !activityDescription.trim()) {
+        displayMessage("Please fill in both title and description.", "error");
+        return;
+      }
+
+      const payload = {
+        title: activityTitle,
+        description: activityDescription,
+      };
+
+      const url = '{% url "api_create_activity" %}'; // Get the API login URL
+
+      sendAjaxPostRequestJson(url, payload)
+        .then(([success, responseData]) => {
+          if (success) {
+            // Check if response status is 2xx
+            displayMessage("Activity created successfully!", "success");
+            form.reset(); // Clear the form
+            // Optionally, redirect or update UI after success
+            // window.location.href = '/activities/';
+          } else {
+            // Handle API errors (e.g., 400 Bad Request, 500 Internal Server Error)
+            const errorMessage = result.message || "An unknown error occurred.";
+            displayMessage(`Error: ${errorMessage}`, "error");
+            console.error("API Error:", result);
+          }
+        })
+        .catch((error) => {
+          console.error("Network or Fetch Error:", error);
+          displayMessage("Failed to connect to the server. Please try again.", "error");
+        });
+    });
+
+    function displayMessage(message, type) {
+      messageDisplay.textContent = message;
+      messageDisplay.className = `message-box ${type}`;
+      messageDisplay.style.display = "block";
+    }
+  });
+</script>
+{% endblock %}
